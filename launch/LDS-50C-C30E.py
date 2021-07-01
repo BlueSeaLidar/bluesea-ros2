@@ -20,10 +20,10 @@ def generate_launch_description():
 
     params_declare = DeclareLaunchArgument('params_file',
                                            default_value=os.path.join(
-                                               share_dir, 'params', 'LDS-50C-2.yaml'),
+                                               share_dir, 'params', 'LDS-50C-C30E.yaml'),
                                            description='FPath to the ROS2 parameters file to use.')
 
-    driver_node = LifecycleNode( name='bluesea_node', namespace='/', package='bluesea2', executable='bluesea_node', output='screen', emulate_tty=True, parameters=[parameter_file] )
+    driver_node = LifecycleNode( name='bluesea_node', namespace='/', package='bluesea2', executable='bluesea_node', output='screen', emulate_tty=True, parameters=[parameter_file])
 
     tf2_node = Node(package='tf2_ros',
                     executable='static_transform_publisher',
