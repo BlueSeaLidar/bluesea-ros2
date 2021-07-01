@@ -767,6 +767,15 @@ HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states,
 int ParserClose(HParser hP)
 {
 	Parser* parser = (Parser*)hP;
+	
+	while (parser->fan_segs != NULL) 
+	{
+		FanSegment* next = parser->fan_segs->next;
+		delete parser->fan_segs;
+		parser->fan_segs = next;
+	}
+
+
 	delete parser;
 	return 0;
 }
@@ -814,6 +823,11 @@ int ParserRunStream(HParser hP, int len, unsigned char* bytes, RawData* fans[])
 int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[]) 
 {	
 	Parser* parser = (Parser*)hP;
+
+	if ( *(uint32_t*)buf == 0x47534d4c) { //"LMSG"
+		// skip all message
+		return 0;
+	}
 
 	uint8_t type = buf[0];
 

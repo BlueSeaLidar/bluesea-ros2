@@ -40,6 +40,7 @@ struct UDPInfo
 	char lidar_ip[32];
 	char group_ip[32];
 	pthread_t thr;
+	bool should_exit;
 };
 
 
@@ -219,19 +220,19 @@ void* UdpThreadProc(void* p)
 
 	ParserScript(info->hParser, udp_talk, info);
 
-	while (1) 
+	while (!info->should_exit) 
 	{
 		fd_set fds;
 		FD_ZERO(&fds); 
 
 		FD_SET(fd_udp, &fds); 
 	
-		struct timeval to = { 1, 5 }; 
+		struct timeval to = { 0, 50000 }; 
 		int ret = select(fd_udp+1, &fds, NULL, NULL, &to); 
 
 		if (ret == 0) {
-			char cmd[12] = "LGCPSH";
-			rt = send_cmd_udp(info->fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
+			//char cmd[12] = "LGCPSH";
+			//rt = send_cmd_udp(info->fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
 		}
 		
 		if (ret < 0) {
@@ -285,9 +286,11 @@ void* UdpThreadProc(void* p)
 
 			tto = tv.tv_sec + 1;
 		}
-
-
 	}
+	close(fd_udp);
+	pthread_exit(NULL);
+	//printf("udp thread exit\n");
+
 	return NULL;
 }
 
@@ -303,6 +306,7 @@ HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port,
 	info->lidar_port = lidar_port;
 	strcpy(info->lidar_ip, lidar_ip);
 	strcpy(info->group_ip, group_ip);
+	info->should_exit = false;
 
 	// open UDP port
 	info->fd_udp  = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -320,9 +324,20 @@ HReader StartUDPReader(const char* lidar_ip, unsigned short lidar_port,
 	printf("start udp %s:%d udp %d\n", lidar_ip, lidar_port, info->fd_udp);
 
 	pthread_create(&info->thr, NULL, UdpThreadProc, info); 
-
 	return info;
 } 
+
+void StopUDPReader(HReader hr)
+{
+	UDPInfo* info = (UDPInfo*)hr;
+
+	//printf("stop udp reader\n");
+	info->should_exit = true;
+	//sleep(1);
+	pthread_join(info->thr, NULL);
+
+	delete info;
+}
 
 bool SendUdpCmd(HReader hr, int len, char* cmd)
 {

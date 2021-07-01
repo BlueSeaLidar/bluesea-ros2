@@ -636,6 +636,9 @@ int main(int argc, char *argv[])
        	auto node = rclcpp::Node::make_shared("bluesea_node");
 
 	READ_PARAM(std::string, "type", type, "uart");
+	g_type = type;
+	
+
 	READ_PARAM(std::string, "platform", platform, "LDS-50C-S");
 
 	// for serial port comm
@@ -644,7 +647,7 @@ int main(int argc, char *argv[])
 
 
 	READ_PARAM(std::string, "rate_list", rate_list, "230400,256000,500000,768000,1000000");
-	int* rates = new int[100];
+	int rates[100];
 	split(rate_list, ',', rates);
 
 	// for network comm
@@ -713,6 +716,7 @@ int main(int argc, char *argv[])
 	HParser parser = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res, with_chk, dev_id);
 
 	PubHub* hub = new PubHub;
+	hub->nfan = 0;
 	pthread_mutex_init(&hub->mtx, NULL);
 
 	if (g_type == "uart") 
@@ -746,10 +750,31 @@ int main(int argc, char *argv[])
 			PublishLaserScan(laser_pub, n, fans, frame_id, max_dist, 
 					with_angle_filter, min_angle, max_angle, 
 					inverted, reversed);
+			for (int i=0; i<n; i++) delete fans[i];
 	       	} else {
 			loop_rate.sleep();
 		}
 	}
+
+	if (g_type == "uart") 
+	{
+		StopUartReader(g_reader);
+	}
+	else if (g_type == "udp") 
+	{
+		StopUDPReader(g_reader);
+	}
+	else if (g_type == "tcp") 
+	{
+		StopTCPReader(g_reader);
+	}
+
+	ParserClose(parser);
+
+	for (int i=0; i<hub->nfan; i++) {
+		delete hub->fans[i];
+	}
+	delete hub;
 
        	rclcpp::shutdown();
        	return 0;

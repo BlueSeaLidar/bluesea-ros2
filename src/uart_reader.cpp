@@ -34,6 +34,8 @@ struct UartInfo
 	int baudrate;
 	int* rate_list;
 
+	bool should_exit;
+
 	HParser hParser;
 	HPublish hPublish;
 	pthread_t thr;
@@ -210,7 +212,7 @@ int UartReader(UartInfo* info)
 
 	RawData* fans[MAX_FANS];
 
-	while (1) 
+	while (!info->should_exit) 
 	{
 		fd_set fds;
 		FD_ZERO(&fds); 
@@ -245,6 +247,7 @@ int UartReader(UartInfo* info)
 			}
 		}
 	}
+
 	return 0;
 }
 
@@ -311,7 +314,8 @@ void* UartThreadProc(void* p)
 {
 	UartInfo* info = (UartInfo*)p;
 
-	while (1) {
+	while (!info->should_exit) 
+	{
 		if (access(info->port, R_OK)) 
 		{
 			printf("port %s not ready\n", info->port);
@@ -339,9 +343,11 @@ void* UartThreadProc(void* p)
 
 			UartReader(info);
 		} else {
-			sleep(10);
+			for (int i=0; i<10 && !info->should_exit; i++) 
+				sleep(1);
 		}
 	}
+	pthread_exit(NULL);
 
 	return NULL;
 }
@@ -355,11 +361,22 @@ void* StartUartReader(const char* port, int baudrate, int* rate_list, HParser hP
 	info->rate_list = rate_list;
 	info->hParser = hParser;
 	info->hPublish = hPublish;
+	info->should_exit = false;
 
 	pthread_create(&info->thr, NULL, UartThreadProc, info); 
 
 	return info;
 }
+
+void StopUartReader(HReader hr)
+{
+	UartInfo* info = (UartInfo*)hr;
+	info->should_exit = true;
+	//sleep(1);
+	pthread_join(info->thr, NULL);
+	delete info;
+}
+
 
 bool SendUartCmd(HReader hr, int len, char* cmd)
 {
