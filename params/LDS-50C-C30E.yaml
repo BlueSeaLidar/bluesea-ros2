@@ -1,0 +1,32 @@
+bluesea_node:
+  ros__parameters:
+    type: "udp"
+    platform: "LDS-50C-E"
+    port: "/dev/ttyUSB0"
+    frame_id: "map"
+    rate_list: "500000, 768000, 921600"
+    baud_rate: 500000
+    raw_bytes: 3
+    max_dist: 50.0
+    output_360: true
+    output_scan: true
+    output_cloud: false
+    with_angle_filter: false
+    min_angle: -3.14159
+    max_angle: 3.14159
+    hard_resample: true
+    soft_resample: false
+    resample_res: 0.400
+    unit_is_mm: true
+    with_confidence: true
+    with_checksum: true
+    rpm: 600
+    with_smooth: true
+    with_deshadow: true
+    inverted: false
+    reversed: false
+    lidar_ip: "192.168.0.198"
+    lidar_port: 6543
+    local_port: 6668
+    group_ip: "224.1.2.3"
+    dev_id: -1
