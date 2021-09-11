@@ -18,7 +18,12 @@ How to run Lanhai ros node (Serial Port Version)
 ## if your lidar model is LDS-50C-C30E :
 * ros2 launch bluesea2 LDS-50C-C30E.py 
     
+## if your lidar model is LDS-50C-C20E :
+* ros2 launch bluesea2 LDS-50C-C20E.py 
 
+## if your lidar model is LSS-40D-C20E :
+* ros2 launch bluesea2 LDS-40D-C20E.py 
+    
 3) optional : ros2 topic hz /scan
 4) optional : rviz2 # 
 
