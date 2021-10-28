@@ -13,6 +13,7 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 //#include "timer.h"
 #include "reader.h"
+#include <cmath>
 
 #define ROS2Verision "1.4.5"
 
