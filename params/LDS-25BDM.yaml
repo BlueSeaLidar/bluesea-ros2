@@ -1,0 +1,23 @@
+bluesea_node:
+  ros__parameters:
+    type: "uart"
+    platform: "LDS-50C-2"
+    port: "/dev/ttyUSB0"
+    frame_id: "map"
+    rate_list: "230400,256000"
+    baud_rate: 230400
+    raw_bytes: 2
+    max_dist: 25.0
+    output_360: true
+    output_scan: true
+    output_cloud: false
+    with_angle_filter: false
+    min_angle: -3.14159
+    max_angle: 3.14159
+    hard_resample: true
+    soft_resample: false
+    resample_res: 0.52
+    unit_is_mm: false
+    with_confidence: true
+    with_checksum: false
+    rpm: 600
