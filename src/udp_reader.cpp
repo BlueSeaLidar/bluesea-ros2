@@ -209,7 +209,7 @@ void* UdpThreadProc(void* p)
 	int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x0043, rand(), 6, cmd);
 
 	RawData* fans[MAX_FANS];
-	char buf[1024];
+	uint8_t buf[1024];
 
 	timeval tv;
 	gettimeofday(&tv, NULL);
@@ -250,13 +250,13 @@ void* UdpThreadProc(void* p)
 
 			int nr = recvfrom(fd_udp, buf, sizeof(buf), 0, (struct sockaddr *)&addr, &sz);
 			if (nr > 0) {
-				if (buf[0] == 0x4c && buf[1] == 0x48 && buf[2] == ~0x41 && buf[3] == ~0x4b) 
+				if (buf[0] == 0x4c && buf[1] == 0x48 && buf[2] == 0xbe && buf[3] == 0xb4) 
 				{
 					if (nr == sizeof(KeepAlive)+12) 
 					{
 						uint32_t clock = (tv.tv_sec % 3600) * 1000 + tv.tv_usec/1000;
 						KeepAlive* ka = (KeepAlive*)(buf+8);
-						if (clock > ka->world_clock) 
+						if (clock >= ka->world_clock) 
 							delay = clock - ka->world_clock;
 						else	
 							delay = clock + 36000000 - ka->world_clock;
