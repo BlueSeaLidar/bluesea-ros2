@@ -285,6 +285,9 @@ void* UdpThreadProc(void* p)
 			send_cmd_udp_f(info->fd_udp, info->lidar_ip, info->lidar_port, 0x4b41, rand(), sizeof(alive), &alive, false);
 
 			tto = tv.tv_sec + 1;
+					
+			//The host sends time synchronization information to the radar
+			//printf("udp ip:%s  port:%d lidar:%d  delay:%d\n", info->lidar_ip,info->lidar_port,alive.world_clock, delay);
 		}
 	}
 	close(fd_udp);
