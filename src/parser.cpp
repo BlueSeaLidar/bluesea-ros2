@@ -961,6 +961,25 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 	return 0;
 }
 
+int strip(const char* s, char* buf)
+{
+	int len = 0;
+
+	for (int i=0; s[i] != 0; i++)
+	{
+		if (s[i] >= 'a' && s[i] <= 'z')
+			buf[len++] = s[i];
+		else if (s[i] >= 'A' && s[i] <= 'Z')
+			buf[len++] = s[i];
+	       	else if (s[i] >= '0' && s[i] <= '9')
+		       	buf[len++] = s[i];
+	       	else if (len > 0)
+		       	break;
+       	}
+       	buf[len] = 0;
+       	return len;
+}
+
 
 char g_uuid[32] = "";
 
@@ -973,8 +992,15 @@ bool ParserScript(HParser hP, Script script, void* hnd)
 	if (parser->device_ability & DF_WITH_UUID) {
 		for (int i=0; i<10; i++)
 		{
-			if (script(hnd, 6, "LUUIDH", 12, "PRODUCT SN: ", 9, g_uuid))
+			if (script(hnd, 6, "LUUIDH", 11, "PRODUCT SN:", 16, buf))
 			{
+				strip(buf, g_uuid);
+				printf("get product SN : \'%s\'\n", g_uuid);
+				break;
+			}
+			else if (script(hnd, 6, "LUUIDH", 10, "VENDOR ID:", 16, buf))
+			{
+				strip(buf, g_uuid);
 				printf("get product SN : \'%s\'\n", g_uuid);
 				break;
 			}
