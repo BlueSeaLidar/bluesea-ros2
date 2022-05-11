@@ -703,7 +703,9 @@ int main(int argc, char *argv[])
        	READ_PARAM(std::string, "frame_id", frame_id, "LH_laser"); // could be used for rviz
        //READ_PARAM(std::string, "firmware_version", firmware_number, 2);
 
-		
+	// topic 
+       	READ_PARAM(std::string, "topic", topic, "scan"); 
+	
 	uint32_t device_ability = get_device_ability(platform);
 
 	//
@@ -735,7 +737,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	auto laser_pub = node->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
+	auto laser_pub = node->create_publisher<sensor_msgs::msg::LaserScan>(topic, rclcpp::SensorDataQoS());
 
 	rclcpp::WallRate loop_rate(100);
 
