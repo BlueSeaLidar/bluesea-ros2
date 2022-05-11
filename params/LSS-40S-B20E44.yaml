@@ -4,6 +4,7 @@ bluesea_node:
     platform: "LDS-50C-E"
     port: "/dev/ttyUSB0"
     frame_id: "map"
+    topic: "scan"
     rate_list: "500000, 768000, 921600"
     baud_rate: 500000
     raw_bytes: 3
