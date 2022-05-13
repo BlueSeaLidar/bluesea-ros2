@@ -11,6 +11,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/time_source.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include<std_srvs/srv/empty.hpp>
 //#include "timer.h"
 #include "reader.h"
 #include <cmath>
@@ -562,29 +563,28 @@ void setup_params(bluesea2::DynParamsConfig &config, uint32_t level)
 
 	SendCmd(strlen(cmd), cmd);
 }
-
+#endif
 
 bool should_start = true;
 // service call back function
-bool stop_motor(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+bool stop_motor(const std::shared_ptr<std_srvs::srv::Empty::Request>req, std::shared_ptr<std_srvs::srv::Empty::Response> res)
 {
 	should_start = false;
-	ROS_INFO("Stop motor");
+	//ROS_INFO("Stop motor");
 	char cmd[] = "LSTOPH";
 	return SendCmd(6, cmd);
 }
 
 // service call back function
-bool start_motor(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+bool start_motor(const std::shared_ptr<std_srvs::srv::Empty::Request>req, std::shared_ptr<std_srvs::srv::Empty::Response> res)
 {
 	should_start = true;
 	char cmd[] = "LSTARH";
 
-	ROS_INFO("Stop motor");
+	//ROS_INFO("Stop motor");
 
 	return SendCmd(6, cmd);
 }
-#endif
 
 uint32_t get_device_ability(const std::string& platform) 
 {
@@ -738,7 +738,8 @@ int main(int argc, char *argv[])
 
 
 	auto laser_pub = node->create_publisher<sensor_msgs::msg::LaserScan>(topic, rclcpp::SensorDataQoS());
-
+	rclcpp::Service<std_srvs::srv::Empty>::SharedPtr service =  node->create_service<std_srvs::srv::Empty>("start",  &start_motor); 
+	rclcpp::Service<std_srvs::srv::Empty>::SharedPtr service2 =  node->create_service<std_srvs::srv::Empty>("stop",  &stop_motor);
 	rclcpp::WallRate loop_rate(100);
 
 	while (rclcpp::ok()) 
