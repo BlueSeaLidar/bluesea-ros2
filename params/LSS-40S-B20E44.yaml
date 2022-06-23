@@ -4,7 +4,6 @@ bluesea_node:
     platform: "LDS-50C-E"
     port: "/dev/ttyUSB0"
     frame_id: "map"
-    topic: "scan"
     rate_list: "500000, 768000, 921600"
     baud_rate: 500000
     raw_bytes: 3
@@ -26,8 +25,13 @@ bluesea_node:
     with_deshadow: true
     inverted: false
     reversed: false
-    lidar_ip: "192.168.0.199"
+    topic: "scan"
+    lidar_ip: "192.168.0.130"
     lidar_port: 6543
+    # topic1: "scan1"
+    # lidar1_ip: "192.168.0.99"
+    # lidar1_port: 6543
     local_port: 6668
     group_ip: "224.1.2.3"
     dev_id: -1
+    alarm_msg: false
