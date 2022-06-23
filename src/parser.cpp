@@ -3,7 +3,8 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
-#include "parser.h"
+#include "reader.h"
+#include "alarm.h"
 
 #define HDR_SIZE 6
 #define HDR2_SIZE 8
@@ -134,6 +135,7 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	memcpy(dat, &hdr, HDR_SIZE);
 	dat->span = 360;
@@ -157,7 +159,7 @@ static RawData* GetData0xCE_2(const RawDataHdr& hdr, unsigned char* buf, uint32_
 			if (is_mm == 0) 
 				dat->points[i].distance *= 10;
 		} else {
-			dat->points[i].confidence = is_mm ? val : val*10;
+			dat->points[i].distance = is_mm ? val : val*10;
 			dat->points[i].confidence = 0;
 		}
 
@@ -192,6 +194,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	memcpy(dat, &hdr, HDR_SIZE);
 	int span = (flags & DF_FAN_90) ? 90 : 360;
@@ -223,7 +226,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 	{
 		delete dat;
 		printf("chksum ce error");
-		return NULL;;
+		return NULL;
 	}
 
 	//memcpy(dat.data, buf+idx+HDR_SIZE, 2*hdr.N);
@@ -234,7 +237,7 @@ static RawData* GetData0xCE_3(const RawDataHdr& hdr, unsigned char* buf, uint32_
 	return dat;
 }
 
-static FanSegment* GetFanSegment(const RawDataHdr7& hdr, uint8_t* pdat, bool with_chk)
+static FanSegment* GetFanSegment(const RawDataHdr7& hdr, uint8_t* pdat, bool /*with_chk*/)
 {
 	FanSegment* fan_seg = new FanSegment;
 	if (!fan_seg) {
@@ -279,11 +282,11 @@ static FanSegment* GetFanSegment(const RawDataHdr7& hdr, uint8_t* pdat, bool wit
 	return fan_seg;
 }
 
+
 void DecTimestamp(uint32_t ts, uint32_t* ts2)
 {	
 	timeval tv;
 	gettimeofday(&tv, NULL);
-
 	uint32_t sec = tv.tv_sec % 3600;
 	if (sec < 5 && ts/1000 > 3595)
 	{
@@ -303,6 +306,7 @@ static RawData* PackFanData(FanSegment* seg)
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	dat->code = 0xfac7;
 	dat->N = seg->hdr.whole_fan;
@@ -312,6 +316,7 @@ static RawData* PackFanData(FanSegment* seg)
 	dat->first = 0;
 	dat->last = 0;
 	dat->fend = 0;
+	dat->counterclockwise = 0;
 
 	DecTimestamp(seg->hdr.timestamp, dat->ts);
 	//printf("%d %d.%d\n", dat->angle, dat->ts[0], dat->ts[1]);
@@ -445,7 +450,7 @@ static RawData* GetData0x99(const RawDataHdr99& hdr, unsigned char* pdat, bool)
 		return NULL;
 	}
 
-	//memset(dat, 0, sizeof(ScanData));
+	memset(dat, 0, sizeof(RawData));
 	dat->code = hdr.code;
 	dat->N = hdr.N;
 	dat->angle = hdr.from * 3600 / hdr.total; // 0.1 degree
@@ -455,6 +460,8 @@ static RawData* GetData0x99(const RawDataHdr99& hdr, unsigned char* pdat, bool)
 	//dat->last;
 	//dat->fend;
 	DecTimestamp(hdr.timestamp, dat->ts);
+
+	dat->counterclockwise = (hdr.flags & DF_MOTOR_REVERSE) ? 1 : 0;
 
 	pdat += HDR99_SIZE;
 
@@ -482,6 +489,7 @@ static RawData* GetData0xCF(const RawDataHdr2& hdr, unsigned char* pdat, bool wi
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	memcpy(dat, &hdr, HDR2_SIZE);
 
@@ -530,6 +538,7 @@ static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, bool wi
 		printf("out of memory\n");
 		return NULL;
 	}
+	memset(dat, 0, sizeof(RawData));
 
 	memcpy(dat, &hdr, HDR3_SIZE);
 	
@@ -576,25 +585,27 @@ static RawData* GetData0xDF(const RawDataHdr3& hdr, unsigned char* pdat, bool wi
 
 }
 
-static bool strange = false;
 static int MsgProc(Parser* parser, int len, unsigned char* buf)
 {
 	if (len >= 8 && buf[0] == 'S' && buf[1] == 'T' && buf[6] == 'E' && buf[7] == 'D')
        	{
 		parser->flags = update_flags(buf+2);
-		return 1;
 	}
-		
-	printf("unkown %d bytes %02x %02x %02x %02x\n", len, buf[0], buf[1], buf[2], buf[3]);
-	strange = true;
-	return 0;
+	else {
+		printf("unknown %d bytes : %02x ", len, buf[0]);
+		for (int i=1; i<len && i<16; i++) printf("%02x ", buf[i]);
+		printf("\n");
+
+	}
+
+	return -1;
 }
 
 
 static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, RawData* fans[]) 
 {
-	int idx = 0;
 	int max_fan = *nfan;
+	int idx = 0;
 	*nfan = 0;
 
 	int unk = 0;
@@ -673,7 +684,8 @@ static int ParseStream(Parser* parser, int len, unsigned char* buf, int* nfan, R
 				// need more bytes
 				break;
 			}
-		       	RawDataHdr99 hdr99;
+		 
+			RawDataHdr99 hdr99;
 			memcpy(&hdr99, buf+idx, HDR99_SIZE);
 
 			RawData* fan = GetData0x99(hdr99, buf+idx, parser->with_chk);
@@ -767,18 +779,11 @@ HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states,
 int ParserClose(HParser hP)
 {
 	Parser* parser = (Parser*)hP;
-	
-	while (parser->fan_segs != NULL) 
-	{
-		FanSegment* next = parser->fan_segs->next;
-		delete parser->fan_segs;
-		parser->fan_segs = next;
-	}
-
-
 	delete parser;
 	return 0;
 }
+
+
 
 int ParserRunStream(HParser hP, int len, unsigned char* bytes, RawData* fans[]) 
 {
@@ -798,7 +803,6 @@ int ParserRunStream(HParser hP, int len, unsigned char* bytes, RawData* fans[])
 	memcpy(buf+parser->rest_len, bytes, len);
 	len += parser->rest_len;
 
-	strange = false;
 	int used = ParseStream(parser, len, buf,  &nfan, fans);
 
 #if 0
@@ -807,7 +811,6 @@ int ParserRunStream(HParser hP, int len, unsigned char* bytes, RawData* fans[])
 		fans[i]->ros_angle = LidarAng2ROS(fans[i]->angle + fans[i]->span);
 	}
 #endif
-	if (strange) printf("len %d+%d used %d fan %d\n", len, parser->rest_len, used, nfan);
 
 	parser->rest_len = len - used;
 	if (parser->rest_len > 0) {
@@ -815,21 +818,99 @@ int ParserRunStream(HParser hP, int len, unsigned char* bytes, RawData* fans[])
 	}
 
 	delete[] buf;
-	if (strange) printf("buf deleted\n");
 
 	return nfan;
 }
 
-int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[]) 
+int ParserRun(LidarNode hP, int len, unsigned char* buf, RawData* fans[]) 
 {	
-	Parser* parser = (Parser*)hP;
-
-	if ( *(uint32_t*)buf == 0x47534d4c) { //"LMSG"
-		// skip all message
-		return 0;
-	}
+	Parser* parser = (Parser*)hP.hParser;
 
 	uint8_t type = buf[0];
+
+	if (memcmp(buf, "LMSG", 4) == 0) 
+	{
+		if (len >= (int)sizeof(LidarAlarm) )
+		{
+			LidarAlarm* msg = (LidarAlarm*)buf;
+			if (msg->hdr.type >= 0x100)
+			{
+				printf("Current Lidar IP:%s,Port:%d  \n",hP.ip,hP.port);
+				//说明有LMSG_ALARM报警信息
+				if (getbit(msg->hdr.data, 12) == 1)
+				{
+					printf("ALARM LEVEL:OBSERVE  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type,msg->zone_actived);
+				}
+				if (getbit(msg->hdr.data, 13) == 1)
+				{
+					printf("ALARM LEVEL:WARM  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type,msg->zone_actived);
+				}
+				if (getbit(msg->hdr.data, 14) == 1)
+				{
+					printf("ALARM LEVEL:ALARM  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type,msg->zone_actived);
+				}
+				if (getbit(msg->hdr.data, 15) == 1)
+				{
+					printf("ALARM COVER   MSG TYPE:%d\n", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 16) == 1)
+				{
+					printf("ALARM NO DATA   MSG TYPE:%d\n", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 17) == 1)
+				{
+					// printf("ALARM ZONE NO ACTIVE  MSG TYPE:%d\n", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 18) == 1)
+				{
+					printf("ALARM SYSTEM ERROR  MSG TYPE:%d\n", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 19) == 1)
+				{
+					printf("ALARM RUN EXCEPTION  MSG TYPE:%d\n", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 20) == 1)
+				{
+					printf("ALARM NETWORK ERROR  MSG TYPE:%d\n", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 21) == 1)
+				{
+					printf("ALARM UPDATING  MSG TYPE:%d\n", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 22) == 1)
+				{
+					printf("ALARM ZERO POS ERROR  MSG TYPE:%d\n", msg->hdr.type);
+				}
+				//说明有LMSG_ERROR报错信息
+				if (msg->hdr.type % 2 == 1)
+				{
+					
+					if (getbit(msg->hdr.data, 0) == 1)
+					{
+						printf("LIDAR LOW POWER  MSG TYPE:%d\n", msg->hdr.type);
+					}
+					if (getbit(msg->hdr.data, 1) == 1)
+					{
+						printf("LIDAR  MOTOR STALL  MSG TYPE:%d\n", msg->hdr.type);
+					}
+					if (getbit(msg->hdr.data, 2) == 1)
+					{
+						printf("LIDAR RANGING MODULE TEMPERATURE HIGH  MSG TYPE:%d\n", msg->hdr.type);
+					}
+					if (getbit(msg->hdr.data, 3) == 1)
+					{
+						printf("LIDAR NETWORK ERROR  MSG TYPE:%d\n", msg->hdr.type);
+					}
+					if (getbit(msg->hdr.data, 4) == 1)
+					{
+						printf("LIDAR RANGER MODULE NO OUTPUT  MSG TYPE:%d\n", msg->hdr.type);
+					}
+				}
+			}
+		}
+
+		return 0;
+	}
 
 	if (buf[1] != 0xfa) {
 		//printf("skip packet %x %x len\n", buf[0], buf[1]);
@@ -838,13 +919,13 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 	{ 
 		PacketUart hdr;
 		memcpy(&hdr, buf, sizeof(PacketUart));
-		if (len >= hdr.len + sizeof(PacketUart) )
+		if (len >= hdr.len + (int)sizeof(PacketUart) )
 		{
 			if (parser->dev_id != ANYONE && hdr.dev_id != parser->dev_id) { 
 				// not my data
 				return 0;
 		       	}
-			return ParserRunStream(hP, hdr.len, buf+sizeof(PacketUart), fans);
+			return ParserRunStream(hP.hParser, hdr.len, buf+sizeof(PacketUart), fans);
 		}
 	}
 	else if (type == 0xCE)
@@ -942,7 +1023,7 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 		if (hdr.N*3+ HDR99_SIZE + 2 > len)
 		{
 			// need more bytes
-			//printf("C7 len %d N %d\n", len, hdr.N);
+			//printf("99 len %d N %d\n", len, hdr.N);
 			return 0;
 		}
 
@@ -956,30 +1037,40 @@ int ParserRun(HParser hP, int len, unsigned char* buf, RawData* fans[])
 		return 0;
 	}
 
+	
+	if (buf[0] == 0x4c && buf[1] == 0x48) {
+		// 
+		return 0;
+	}
+
+	if (memcmp(buf, "LMSG", 4) == 0) {
+		// LMSG
+		return 0;
+	}
+
 
 	printf("skip packet %08x len %d\n", *(uint32_t*)buf, len);
 	return 0;
 }
 
+
 int strip(const char* s, char* buf)
 {
-	int len = 0;
-
-	for (int i=0; s[i] != 0; i++)
-	{
-		if (s[i] >= 'a' && s[i] <= 'z')
-			buf[len++] = s[i];
-		else if (s[i] >= 'A' && s[i] <= 'Z')
-			buf[len++] = s[i];
-	       	else if (s[i] >= '0' && s[i] <= '9')
-		       	buf[len++] = s[i];
-	       	else if (len > 0)
-		       	break;
-       	}
-       	buf[len] = 0;
-       	return len;
+        int len = 0;
+        for (int i=0; s[i] != 0; i++)
+        {
+                if (s[i] >= 'a' && s[i] <= 'z')
+                        buf[len++] = s[i];
+                else if (s[i] >= 'A' && s[i] <= 'Z')
+                        buf[len++] = s[i];
+                else if (s[i] >= '0' && s[i] <= '9')
+                        buf[len++] = s[i];
+		else if (len > 0)
+			break;
+        }
+        buf[len] = 0;
+        return len;
 }
-
 
 char g_uuid[32] = "";
 
@@ -1093,6 +1184,24 @@ bool ParserScript(HParser hP, Script script, void* hnd)
 			}
 		}
 	}
+
+	// enable/disable alaram message uploading
+	if (parser->device_ability & EF_ENABLE_ALARM_MSG) 
+	{
+	       	char cmd[32];
+	       	sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
+
+		for (int i=0; i<10; i++) 
+		{
+			if (script(hnd, strlen(cmd), cmd, 0, NULL, 0, NULL))
+			{
+				printf("set alarm_msg ok\n");
+				break;
+			}
+		}
+	}
+
+
 
 	return true;
 }

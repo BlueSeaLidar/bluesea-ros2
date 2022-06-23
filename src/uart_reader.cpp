@@ -34,8 +34,6 @@ struct UartInfo
 	int baudrate;
 	int* rate_list;
 
-	bool should_exit;
-
 	HParser hParser;
 	HPublish hPublish;
 	pthread_t thr;
@@ -212,14 +210,15 @@ int UartReader(UartInfo* info)
 
 	RawData* fans[MAX_FANS];
 
-	while (!info->should_exit) 
+	while (1) 
 	{
 		fd_set fds;
 		FD_ZERO(&fds); 
 
 		FD_SET(fd_uart, &fds); 
 	
-		struct timeval to = { 5, 1 };
+		struct timeval to = { 1, 500000 };
+				
 		int ret = select(fd_uart+1, &fds, NULL, NULL, &to); 
 
 		if (ret < 0) {
@@ -230,24 +229,23 @@ int UartReader(UartInfo* info)
 		// read UART data
 		if (FD_ISSET(fd_uart, &fds)) 
 		{
-			unsigned char buf[256];
+			unsigned char buf[512];
 			int nr = read(fd_uart, buf, sizeof(buf)); 
 			if (nr <= 0) {
 				printf("read port error %d\n",  nr);
 				break;
-			} else {
-				
-				int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
-				//printf("run stream %d\n", nfan);
-				//for (int i=0; i<nfan; i++)
-				//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
-				if (nfan > 0) {
-					PublishData(info->hPublish, nfan, fans);
-				}
+			} 
+
+			int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
+			//for (int i=0; i<nfan; i++)
+			//	 printf("fan %x %d + %d\n", fans[i], fans[i]->angle, fans[i]->span);
+			if (nfan > 0) {
+				PublishData(info->hPublish, nfan, fans);
 			}
+			if (nr < sizeof(buf)-10) usleep(10000-nr*10);
+
 		}
 	}
-
 	return 0;
 }
 
@@ -314,8 +312,7 @@ void* UartThreadProc(void* p)
 {
 	UartInfo* info = (UartInfo*)p;
 
-	while (!info->should_exit) 
-	{
+	while (1) {
 		if (access(info->port, R_OK)) 
 		{
 			printf("port %s not ready\n", info->port);
@@ -343,13 +340,19 @@ void* UartThreadProc(void* p)
 
 			UartReader(info);
 		} else {
-			for (int i=0; i<10 && !info->should_exit; i++) 
-				sleep(1);
+			sleep(10);
 		}
 	}
-	pthread_exit(NULL);
 
 	return NULL;
+}
+void StopUartReader(HReader hr)
+{
+	UartInfo* info = (UartInfo*)hr;
+	//info->should_exit = true;
+	//sleep(1);
+	pthread_join(info->thr, NULL);
+	delete info;
 }
 
 void* StartUartReader(const char* port, int baudrate, int* rate_list, HParser hParser, HPublish hPublish)
@@ -361,22 +364,11 @@ void* StartUartReader(const char* port, int baudrate, int* rate_list, HParser hP
 	info->rate_list = rate_list;
 	info->hParser = hParser;
 	info->hPublish = hPublish;
-	info->should_exit = false;
 
 	pthread_create(&info->thr, NULL, UartThreadProc, info); 
 
 	return info;
 }
-
-void StopUartReader(HReader hr)
-{
-	UartInfo* info = (UartInfo*)hr;
-	info->should_exit = true;
-	//sleep(1);
-	pthread_join(info->thr, NULL);
-	delete info;
-}
-
 
 bool SendUartCmd(HReader hr, int len, char* cmd)
 {

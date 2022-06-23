@@ -26,7 +26,6 @@ struct TCPInfo
 {
 	HParser hParser;
 	HPublish hPublish;
-	bool should_exit;
 	int fd_tcp;
 	int lidar_port;
 	char lidar_ip[32];
@@ -84,7 +83,7 @@ void* TcpThreadProc(void* p)
 {
 	TCPInfo* info = (TCPInfo*)p;
 
-	while (!info->should_exit) 
+	while (1) 
 	{ 
 		// open TCP 
 		int sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -119,7 +118,6 @@ void* TcpThreadProc(void* p)
 		info->fd_tcp = 0;
 		close(sock);
 	}
-	pthread_exit(NULL);
 	return NULL;
 }
 
@@ -187,15 +185,6 @@ HReader StartTCPReader(const char* lidar_ip, unsigned short lidar_port, HParser 
 	return info;
 } 
 
-void StopTCPReader(HReader hr)
-{
-	TCPInfo* info = (TCPInfo*)hr;
-	info->should_exit = true;
-	//sleep(1);
-	pthread_join(info->thr, NULL);
-	delete info;
-}
-
 bool SendTcpCmd(HReader hr, int len, char* cmd)
 {
 	TCPInfo* info = (TCPInfo*)hr;
@@ -205,5 +194,12 @@ bool SendTcpCmd(HReader hr, int len, char* cmd)
 	return send(info->fd_tcp, cmd, len, 0) == len;
 }
 
-
+void StopTCPReader(HReader hr)
+{
+	TCPInfo* info = (TCPInfo*)hr;
+	//info->should_exit = true;
+	//sleep(1);
+	pthread_join(info->thr, NULL);
+	delete info;
+}
 

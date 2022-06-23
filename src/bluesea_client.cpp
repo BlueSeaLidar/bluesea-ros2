@@ -11,7 +11,7 @@ int main(int argc, char **argv)
 
   if (argc != 2)
   {                                                                                  // CHANGE
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "usage: add_three_ints_client X Y Z"); // CHANGE
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "usage: ros2 run bluesea2  bluesea_node_client stop/start"); // CHANGE
     return 1;
   }
   std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("bluesea_node_client"); // CHANGE
