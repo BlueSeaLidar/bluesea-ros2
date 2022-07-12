@@ -21,3 +21,4 @@ bluesea_node:
     with_confidence: true
     with_checksum: true
     rpm: 600
+    topic: "scan"

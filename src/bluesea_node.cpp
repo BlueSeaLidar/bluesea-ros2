@@ -689,9 +689,11 @@ int main(int argc, char *argv[])
 	std::string laser_topics[MAX_LIDARS];
 	std::string cloud_topics[MAX_LIDARS];
 	// for network comm
+	lidar_ips[0]="192.168.158.91";
 	node->declare_parameter<std::string>("lidar_ip", lidar_ips[0]);
 	node->get_parameter("lidar_ip", lidar_ips[0]);
 
+	lidar_ports[0]=6543;
 	node->declare_parameter<int>("lidar_port", lidar_ports[0]);
 	node->get_parameter("lidar_port", lidar_ports[0]);
 
@@ -700,11 +702,13 @@ int main(int argc, char *argv[])
 	// READ_PARAM(int, "lidar_port", lidar_ports[0], 5000);
 	READ_PARAM(int, "local_port", local_port, 50122);
 	// topic
+	laser_topics[0]="scan";   
 	node->declare_parameter<std::string>("topic", laser_topics[0]);
 	node->get_parameter("topic", laser_topics[0]);
 	// READ_PARAM(std::string, "topic", topics[0], "scan");
 
-	// topic
+	// cloud_topic
+	cloud_topics[0]="scan";
 	node->declare_parameter<std::string>("cloud_topic", cloud_topics[0]);
 	node->get_parameter("cloud_topic", cloud_topics[0]);
 

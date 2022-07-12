@@ -25,8 +25,10 @@ bluesea_node:
     with_deshadow: true
     inverted: false
     reversed: false
+    topic: "scan"
     lidar_ip: "192.168.0.188"
     lidar_port: 6543
     local_port: 6668
     group_ip: "224.1.2.3"
     dev_id: -1
+    alarm_msg: false

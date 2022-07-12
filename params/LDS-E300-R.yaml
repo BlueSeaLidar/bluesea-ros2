@@ -1,12 +1,12 @@
 bluesea_node:
   ros__parameters:
     type: "uart"
-    platform: "LDS-50C-E"
+    platform: "LDS-50C-2"
     port: "/dev/ttyUSB0"
     frame_id: "map"
     rate_list: "768000, 1000000"
     baud_rate: 768000
-    raw_bytes: 3
+    raw_bytes: 2
     max_dist: 25.0
     output_360: true
     output_scan: true
@@ -25,8 +25,10 @@ bluesea_node:
     with_deshadow: true
     inverted: false
     reversed: false
+    topic: "scan"
     lidar_ip: "192.168.158.91"
     lidar_port: 6543
     local_port: 6666
     group_ip: "224.1.2.3"
     dev_id: 0
+    alarm_msg: false

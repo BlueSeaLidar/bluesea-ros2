@@ -16,32 +16,30 @@ import os
 def generate_launch_description():
     share_dir = get_package_share_directory('bluesea2')
     parameter_file = LaunchConfiguration('params_file')
-    parameter_file2 = LaunchConfiguration('params_file2')
     node_name = 'bluesea_node'
 
     params_declare = DeclareLaunchArgument('params_file',
                                            default_value=os.path.join(
-                                               share_dir, 'params', 'LSS-40S-B20E44.yaml'),
+                                               share_dir, 'params', 'dual_lidar.yaml'),
                                            description='FPath to the ROS2 parameters file to use.')
+    
+    #对多版本的兼容性处理 首字母e以及之前为18.04或更早,之后为20.04或更晚
+    ROS_DISTRO=''
+    ROS_DISTRO = os.getenv('ROS_DISTRO')
+    print("Current ROS2 Version: ",ROS_DISTRO)
+    if ROS_DISTRO[0] <= 'e':
+        try:
+            driver_node = LifecycleNode( node_name='bluesea_node', node_namespace='/', package='bluesea2', node_executable='bluesea_node', output='screen', parameters=[parameter_file])
+        except:
+            pass
+    else :
+        try:
+            driver_node = LifecycleNode( name='bluesea_node', namespace='/', package='bluesea2', executable='bluesea_node', output='screen', emulate_tty=True, parameters=[parameter_file])
+        except:
+            pass
 
-    params_declare2 = DeclareLaunchArgument('params_file2',
-                                           default_value=os.path.join(
-                                               share_dir, 'params', 'LSS-40S-B20E44_test1.yaml'),
-                                           description='FPath to the ROS2 parameters file to use.')
-
-    driver_node = LifecycleNode( name='bluesea_node', namespace='/', package='bluesea2', executable='bluesea_node', output='screen', emulate_tty=True, parameters=[parameter_file])
-    driver_node2 = LifecycleNode( name='bluesea_node', namespace='/', package='bluesea2', executable='bluesea_node', output='screen', emulate_tty=True, parameters=[parameter_file2])
-
-    tf2_node = Node(package='tf2_ros',
-                    executable='static_transform_publisher',
-                    name='static_tf_pub_laser',
-                    arguments=['0', '0', '0.02','0', '0', '0', '1','base_link','laser_frame'],
-                    )
 
     return LaunchDescription([
         params_declare,
-         params_declare2,
-        driver_node,
-        driver_node2,
-        #tf2_node,
+        driver_node
     ])

@@ -5,6 +5,20 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# Get ROS2 version information (initial letter) from environment variables
+string(SUBSTRING $ENV{ROS_DISTRO} 0 1 tmp)
+#MESSAGE("ROS_DISTRO2:${tmp}")
+
+string(COMPARE LESS_EQUAL ${tmp} "e" flag)
+#MESSAGE("flag:${flag}")
+
+
+if( ${flag} STREQUAL 1)
+add_definitions(-DROS_DISTRO_E)
+else()
+add_definitions(-DROS_DISTRO_F)
+endif()
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -13,9 +27,9 @@ find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+
+
+include_directories(${sensor_msgs_INCLUDE_DIRS})
 
 add_executable(bluesea_node src/bluesea_node.cpp src/parser.cpp src/uart_reader.cpp src/udp_reader.cpp src/tcp_reader.cpp src/uart.c)
 ament_target_dependencies(bluesea_node

@@ -3,18 +3,16 @@
 #include "rclcpp/time_source.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include <std_srvs/srv/empty.hpp>
-#include <cstdlib>
-//#include <std_srvs/Empty.h>
 int main(int argc, char **argv)
 {
   rclcpp::init(argc, argv);
-
+  //RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Current ROS2 Version is %s",getROS2Version());
   if (argc != 2)
-  {                                                                                  // CHANGE
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "usage: ros2 run bluesea2  bluesea_node_client stop/start"); // CHANGE
+  {                                                                                  
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "usage: ros2 run bluesea2  bluesea_node_client stop/start");
     return 1;
   }
-  std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("bluesea_node_client"); // CHANGE
+  std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("bluesea_node_client"); 
   char cmd[8] = {0};
   strcpy(cmd, argv[1]);
   rclcpp::Client<std_srvs::srv::Empty>::SharedPtr client;
@@ -27,11 +25,7 @@ int main(int argc, char **argv)
     client = node->create_client<std_srvs::srv::Empty>("stop");
   }
 
-  auto request = std::make_shared<std_srvs::srv::Empty::Request>(); // CHANGE
-  // request->a = atoll(argv[1]);
-  // request->b = atoll(argv[2]);
-  // request->c = atoll(argv[3]);                                                              // CHANGE
-
+  auto request = std::make_shared<std_srvs::srv::Empty::Request>(); // CHANGE   
   while (!client->wait_for_service(std::chrono::seconds(1)))
   {
     if (!rclcpp::ok())
@@ -44,8 +38,13 @@ int main(int argc, char **argv)
 
   auto result = client->async_send_request(request);
   // Wait for the result.
-  if (rclcpp::spin_until_future_complete(node, result) ==
-      rclcpp::FutureReturnCode::SUCCESS)
+  //ros2 rolling   20.04
+  #ifdef ROS_DISTRO_F
+  if(rclcpp::spin_until_future_complete(node, result)==rclcpp::FutureReturnCode::SUCCESS)
+  #elif  defined ROS_DISTRO_E
+  //ros2 eloquent   18.04 and lower
+  if(rclcpp::spin_until_future_complete(node, result)==rclcpp::executor::FutureReturnCode::SUCCESS)
+  #endif
   {
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "client OK");
   }

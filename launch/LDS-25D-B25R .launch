@@ -23,16 +23,23 @@ def generate_launch_description():
                                                share_dir, 'params', 'LDS-25D-B25R.yaml'),
                                            description='FPath to the ROS2 parameters file to use.')
 
-    driver_node = LifecycleNode( name='bluesea_node', namespace='/', package='bluesea2', executable='bluesea_node', output='screen', emulate_tty=True, parameters=[parameter_file] )
+     #对多版本的兼容性处理 首字母e以及之前为18.04或更早,之后为20.04或更晚
+    ROS_DISTRO=''
+    ROS_DISTRO = os.getenv('ROS_DISTRO')
+    print("Current ROS2 Version: ",ROS_DISTRO)
+    if ROS_DISTRO[0] <= 'e':
+        try:
+            driver_node = LifecycleNode( node_name='bluesea_node', node_namespace='/', package='bluesea2', node_executable='bluesea_node', output='screen', parameters=[parameter_file])
+        except:
+            pass
+    else :
+        try:
+            driver_node = LifecycleNode( name='bluesea_node', namespace='/', package='bluesea2', executable='bluesea_node', output='screen', emulate_tty=True, parameters=[parameter_file])
+        except:
+            pass
 
-    tf2_node = Node(package='tf2_ros',
-                    executable='static_transform_publisher',
-                    name='static_tf_pub_laser',
-                    arguments=['0', '0', '0.02','0', '0', '0', '1','base_link','laser_frame'],
-                    )
 
     return LaunchDescription([
         params_declare,
-        driver_node,
-        #tf2_node,
+        driver_node
     ])
