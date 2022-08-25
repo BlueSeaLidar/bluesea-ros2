@@ -64,29 +64,34 @@ void PublishData(HPublish pub, int n, RawData **fans)
 
 	pthread_mutex_lock(&hub->mtx);
 
-	for (int i = 0; i < n; i++)
+	if (hub->nfan + n > MAX_FANS) 
 	{
-		if (hub->nfan >= MAX_FANS)
+		int nr = hub->nfan + n - MAX_FANS;
+
+		for (int i=0; i<nr; i++)
+			drop[skip++] = hub->fans[i];
+
+		for (int i=nr; i<hub->nfan; i++)
 		{
-			drop[skip++] = fans[i];
-			continue;
+			hub->fans[i-nr] = hub->fans[i];
 		}
-		// if (hub->nfan == 0 && fans[i]->angle != 0) {
-		// drop[skip++] = fans[i];
-		// continue;
-		// }
+
+		hub->nfan -= nr;
+	}
+
+	for (int i=0; i<n; i++) 
+	{
 		hub->fans[hub->nfan++] = fans[i];
 	}
+
 	pthread_mutex_unlock(&hub->mtx);
 
 	if (skip > 0)
-		printf("skip %d\n", skip);
+		printf("drop %d fans\n", skip);
 	for (int i = 0; i < skip; i++)
 	{
 		delete drop[i];
 	}
-	if (skip > 0)
-		printf("skiped\n");
 }
 
 #if 0
