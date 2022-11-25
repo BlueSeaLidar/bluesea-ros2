@@ -33,7 +33,7 @@ struct PubHub
 	int nfan;
 	RawData *fans[MAX_FANS];
 };
-void closeSignal(int sig)
+void closeSignal(int)
 {
 	rclcpp::shutdown();
 	exit(1);
@@ -181,7 +181,7 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData **fan
 	return got;
 }
 
-int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **fans, bool from_zero,
+int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **fans, bool from_zero,int collect_angle,
 			   uint32_t *ts_beg, uint32_t *ts_end)
 {
 	PubHub *hub = (PubHub *)pub;
@@ -191,7 +191,7 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 	for (int i = 1; i < hub->nfan; i++)
 	{
 		if ((from_zero && hub->fans[i]->angle == 0) ||
-			(!from_zero && hub->fans[i]->angle == 1800))
+			(!from_zero && hub->fans[i]->angle == 1800+collect_angle*10))
 		{
 			ts_end[0] = hub->fans[i]->ts[0];
 			ts_end[1] = hub->fans[i]->ts[1];
@@ -405,7 +405,7 @@ void PublishLaserScanFan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedP
 
 			// customize angle filter
 			bool custom = false;
-			for (int k = 0; k < custom_masks.size() && !custom; k++)
+			for (unsigned int k = 0; k < custom_masks.size() && !custom; k++)
 			{
 				if (with_filter && custom_masks[k].min < deg && deg < custom_masks[k].max)
 					custom = true;
@@ -437,7 +437,7 @@ void PublishLaserScanFan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedP
 
 			// customize angle filter
 			bool custom = false;
-			for (int k = 0; k < custom_masks.size() && !custom; k++)
+			for (unsigned int k = 0; k < custom_masks.size() && !custom; k++)
 			{
 				if (with_filter && custom_masks[k].min < deg && deg < custom_masks[k].max)
 					custom = true;
@@ -661,7 +661,7 @@ void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr 
 
 				// customize angle filter
 				bool custom = false;
-				for (int k = 0; k < custom_masks.size() && !custom; k++)
+				for (unsigned int k = 0; k < custom_masks.size() && !custom; k++)
 				{
 					if (with_filter && custom_masks[k].min < deg && deg < custom_masks[k].max)
 						custom = true;
@@ -694,7 +694,7 @@ void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr 
 				}
 				// customize angle filter
 				bool custom = false;
-				for (int k = 0; k < custom_masks.size() && !custom; k++)
+				for (unsigned int k = 0; k < custom_masks.size() && !custom; k++)
 				{
 					if (with_filter && custom_masks[k].min < deg && deg < custom_masks[k].max)
 						custom = true;
@@ -939,8 +939,14 @@ int main(int argc, char *argv[])
 	READ_PARAM(double, "zero_shift", zero_shift, 0.0);
 
 	READ_PARAM(bool, "from_zero", from_zero, false);
+	READ_PARAM(int, "collect_angle", collect_angle, 0);
 	// alarm_msg
 	READ_PARAM(bool, "alarm_msg", alarm_msg, false);
+	//log
+	READ_PARAM(bool, "Savelog", Savelog, false);
+	READ_PARAM(std::string, "logPath", logPath, std::string("/opt/log"));
+
+
 	std::vector<Range> custom_masks;
 
 	uint32_t device_ability = get_device_ability(platform);
@@ -980,7 +986,7 @@ int main(int argc, char *argv[])
 			printf("[%d] => %d\n", i, rate_list[i]);
 		}
 		rates[rate_list.size()] = 0;
-		g_reader = StartUartReader(port.c_str(), baud_rate, rates, parsers[0], hubs[0]);
+		g_reader = StartUartReader(g_type.c_str(),port.c_str(), baud_rate, rates, parsers[0], hubs[0],Savelog,logPath.c_str());
 	}
 	else if (g_type == "udp")
 	{
@@ -992,7 +998,7 @@ int main(int argc, char *argv[])
 			strcpy(lidars[i].lidar_ip, lidar_ips[i].c_str());
 			lidars[i].lidar_port = lidar_ports[i];
 		}
-		g_reader = StartUDPReader(local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars);
+		g_reader = StartUDPReader(g_type.c_str(),local_port, is_group_listener, group_ip.c_str(), lidar_count, lidars,Savelog,logPath.c_str());
 	}
 	else if (g_type == "tcp")
 	{
@@ -1038,7 +1044,7 @@ int main(int argc, char *argv[])
 			else
 			{
 				uint32_t ts_beg[2], ts_end[2];
-				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero, ts_beg, ts_end);
+				int n = GetAllFans(hubs[i], with_soft_resample, resample_res, fans, from_zero,collect_angle, ts_beg, ts_end);
 				if (n > 0)
 				{
 					idle = false;
