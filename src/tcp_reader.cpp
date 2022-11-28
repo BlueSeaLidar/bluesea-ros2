@@ -194,6 +194,7 @@ bool SendTcpCmd(HReader hr, int len, char* cmd)
 	return send(info->fd_tcp, cmd, len, 0) == len;
 }
 
+
 void StopTCPReader(HReader hr)
 {
 	TCPInfo* info = (TCPInfo*)hr;
@@ -202,4 +203,3 @@ void StopTCPReader(HReader hr)
 	pthread_join(info->thr, NULL);
 	delete info;
 }
-
