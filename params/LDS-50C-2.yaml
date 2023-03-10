@@ -5,7 +5,7 @@ bluesea_node:
     port: "/dev/ttyUSB0"
     frame_id: "map"
     rate_list: "500000, 768000, 921600"
-    baud_rate: 500000
+    baud_rate: 768000
     raw_bytes: 3
     max_dist: 50.0
     output_360: true
@@ -32,3 +32,5 @@ bluesea_node:
     group_ip: "224.1.2.3"
     dev_id: 0
     alarm_msg: false
+    error_circle: 3
+    error_scale: 0.9

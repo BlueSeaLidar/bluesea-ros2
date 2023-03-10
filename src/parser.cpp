@@ -720,7 +720,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 }
 
 HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states,
-				   int init_rpm, double resample_res, bool with_chksum, uint32_t dev_id)
+				   int init_rpm, double resample_res, bool with_chksum, uint32_t dev_id,int error_circle,double error_scale)
 {
 	Parser *parser = new Parser;
 
@@ -734,7 +734,8 @@ HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states,
 	parser->resample_res = resample_res;
 	parser->fan_segs = NULL;
 	parser->dev_id = dev_id;
-
+	parser->error_circle = error_circle;
+	parser->error_scale = error_scale;
 	return parser;
 }
 
@@ -787,7 +788,7 @@ int ParserRunStream(HParser hP, int len, unsigned char *bytes, RawData *fans[])
 }
 int alarmProc(unsigned char *buf, int len)
 {
-	//报警信息打印
+	//报�?�信�?打印
 	if (memcmp(buf, "LMSG", 4) == 0)
 	{
 		if (len >= (int)sizeof(LidarAlarm))
@@ -795,7 +796,7 @@ int alarmProc(unsigned char *buf, int len)
 			LidarAlarm *msg = (LidarAlarm *)buf;
 			if (msg->hdr.type >= 0x100)
 			{
-				//说明有LMSG_ALARM报警信息
+				//说明有LMSG_ALARM报�?�信�?
 				if (getbit(msg->hdr.data, 12) == 1)
 				{
 					printf("ALARM LEVEL:OBSERVE  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type, msg->zone_actived);
@@ -877,7 +878,7 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 	Parser *parser = (Parser *)hP.hParser;
 
 	uint8_t type = buf[0];
-	//报警信息打印
+	//报�?�信�?打印
 	if (alarmProc(buf, len))
 		return 0;
 
@@ -1039,14 +1040,12 @@ char g_uuid[32] = "";
 
 bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, void *hnd)
 {
+	
 	Parser *parser = (Parser *)hP;
 	unsigned int index = 5;
 	char buf[32];
-	if (script(hnd, 6, "LSTARH", 6, "LiDAR ", 0, NULL))
-	{
-		printf("set LiDAR LSTARH OK\n");
-	}
-	// printf("%d\n",__LINE__);
+	char result[3]={0};
+	result[2]='\0';
 	if (parser->device_ability & DF_WITH_UUID)
 	{
 		for (unsigned int i = 0; i < index; i++)
@@ -1072,9 +1071,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 		for (unsigned int i = 0; i < index; i++)
 		{
 			const char *cmd = (parser->init_states & DF_UNIT_IS_MM) ? "LMDMMH" : "LMDCMH";
-			if (script(hnd, 6, cmd, 10, "SET LiDAR ", 9, buf))
+			if (script(hnd, 6, cmd, 10, "SET LiDAR ", 12, buf))
 			{
-				printf("set LiDAR unit %s OK\n", cmd);
+				printf("set LiDAR unit %s \n", buf);
 				break;
 			}
 		}
@@ -1086,13 +1085,14 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 		for (unsigned int i = 0; i < index; i++)
 		{
 			const char *cmd = (parser->init_states & DF_WITH_INTENSITY) ? "LOCONH" : "LNCONH";
-			if (script(hnd, 6, cmd, 6, "LiDAR ", 5, buf))
+			if (script(hnd, 6, cmd, 6, "LiDAR ", 12, buf))
 			{
-				printf("set LiDAR confidence %s OK\n", cmd);
+				printf("set LiDAR confidence %s \n", buf);
 				break;
 			}
 		}
 	}
+
 	// enable/disable shadow filter
 	if (parser->device_ability & DF_DESHADOWED)
 	{
@@ -1101,9 +1101,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_DESHADOWED) ? "LSDSW:1H" : "LSDSW:0H";
-				if (s_pack(hnd, strlen(cmd), cmd))
+				if (s_pack(hnd, strlen(cmd), cmd,result))
 				{
-					printf("set LiDAR shadow filter %s OK\n", cmd);
+					printf("set LiDAR shadow filter %s %s\n", cmd,result);
 					break;
 				}
 			}
@@ -1113,14 +1113,15 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_DESHADOWED) ? "LFFF1H" : "LFFF0H";
-				if (script(hnd, 6, cmd, 6, "LiDAR ", 0, NULL))
+				if (script(hnd, 6, cmd, 6, "LiDAR ", 12, buf))
 				{
-					printf("set LiDAR shadow filter %s OK\n", cmd);
+					printf("set LiDAR shadow filter %s \n", buf);
 					break;
 				}
 			}
 		}
 	}
+
 	// enable/disable smooth
 	if (parser->device_ability & DF_SMOOTHED)
 	{
@@ -1129,9 +1130,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_SMOOTHED) ? "LSSMT:1H" : "LSSMT:0H";
-				if (s_pack(hnd, strlen(cmd), cmd))
+				if (s_pack(hnd, strlen(cmd), cmd,result))
 				{
-					printf("set LiDAR smooth  %s OK\n", cmd);
+					printf("set LiDAR smooth  %s %s\n", cmd,result);
 					break;
 				}
 			}
@@ -1141,17 +1142,16 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 			for (unsigned int i = 0; i < index; i++)
 			{
 				const char *cmd = (parser->init_states & DF_SMOOTHED) ? "LSSS1H" : "LSSS0H";
-				if (script(hnd, 6, cmd, 6, "LiDAR ", 0, NULL))
+				if (script(hnd, 6, cmd, 6, "LiDAR ", 12, buf))
 				{
-					printf("set LiDAR smooth to %s OK\n", cmd);
+					printf("set LiDAR smooth to %s\n", buf);
 					break;
 				}
 			}
 		}
 	}
-	//printf("%d\n", __LINE__);
-	// setup rpm
 
+	// setup rpm
 	if (parser->device_ability & DF_WITH_RPM)
 	{
 		if (parser->init_rpm > 300 && parser->init_rpm < 3000)
@@ -1162,17 +1162,17 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 				sprintf(cmd, "LSRPM:%dH", parser->init_rpm);
 				if (strcmp(type, "udp") == 0)
 				{
-					if (s_pack(hnd, strlen(cmd), cmd))
+					if (s_pack(hnd, strlen(cmd), cmd,result))
 					{
-						printf("set RPM to %d OK\n", parser->init_rpm);
+						printf("set RPM to %d %s\n", parser->init_rpm,result);
 						break;
 					}
 				}
 				else
 				{
-					if (script(hnd, strlen(cmd), cmd, 3, "RPM", 5, buf))
+					if (script(hnd, strlen(cmd), cmd, 3, "RPM", 12, buf))
 					{
-						printf("set RPM to %d OK\n", parser->init_rpm);
+						printf("set RPM to %d %s\n", parser->init_rpm,buf);
 						break;
 					}
 				}
@@ -1189,18 +1189,28 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 			{
 				if (parser->resample_res == 0 || parser->resample_res == 1)
 				{
-					sprintf(cmd, "LSRES:%03dH", int(parser->resample_res));
+					sprintf(cmd, "LSRES:%dH", int(parser->resample_res));
 				}
 				else
 				{
-					sprintf(cmd, "LSRES:%03dH", int(parser->resample_res * 1000));
+					sprintf(cmd, "LSRES:%dH", int(parser->resample_res * 1000));
 				}
-
 				char pattern[] = "set resolution ";
-				if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 1, buf))
+				if (strcmp(type, "udp") == 0)
 				{
-					printf("set resolution %s\n", buf);
-					break;
+					if (script(hnd, strlen(cmd), cmd, 2, "OK", 0, NULL))
+					{
+						printf("set resolution %s OK\n", cmd);
+						break;
+					}	
+				}	
+				else
+				{
+					if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 12, buf))
+					{
+						printf("set resolution %s\n", buf);
+						break;
+					}
 				}
 			}
 		}
@@ -1212,9 +1222,9 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 		sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
 		for (unsigned int i = 0; i < index; i++)
 		{
-			if (s_pack(hnd, strlen(cmd), cmd))
+			if (s_pack(hnd, strlen(cmd), cmd,result))
 			{
-				printf("set alarm_msg ok\n");
+				printf("set alarm_msg %s\n",result);
 				break;
 			}
 		}
@@ -1222,7 +1232,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 
 	return true;
 }
-void saveLog(bool isSaveLog, const char *logPath, int type, const unsigned char *buf, unsigned int len)
+void saveLog(bool isSaveLog, const char *logPath, int type, const char *ip,const int port,const unsigned char *buf, unsigned int len)
 {
 	if (isSaveLog)
 	{
@@ -1230,9 +1240,9 @@ void saveLog(bool isSaveLog, const char *logPath, int type, const unsigned char 
 		if (fp)
 		{
 			if (type == 0)
-				fprintf(fp, "SEND MSG:\t");
+				fprintf(fp, "%s %d SEND MSG:\t",ip,port);
 			if (type == 1)
-				fprintf(fp, "REV MSG:\t");
+				fprintf(fp, "%s %d REV MSG:\t",ip,port);
 
 			for (unsigned int i = 0; i < len; i++)
 			{

@@ -221,7 +221,7 @@ int GetAllFans(HPublish pub, bool with_resample, double resample_res, RawData **
 		// printf("ts = %d.%d\n",fans[0]->ts[0],fans[0]->ts[1]);
 		for (int i = 0; i < cnt - 1; i++)
 		{
-			if (fans[i]->angle + fans[i]->span != fans[i + 1]->angle &&
+			if ((fans[i]->angle + fans[i]->span)%3600 != fans[i + 1]->angle &&
 				fans[i]->angle + fans[i]->span != 3600)
 				circle = false;
 			total += fans[i + 1]->span;
@@ -309,7 +309,7 @@ void PublishLaserScanFan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedP
 						 double min_dist, double max_dist,
 						 bool with_filter, double min_ang, double max_ang,
 						 bool inverted, bool reversed, double zero_shift,
-						 const std::vector<Range> &custom_masks)
+						 const std::vector<Range> &custom_masks, int collect_angle)
 {
 	double min_deg = min_ang * 180 / M_PI;
 	double max_deg = max_ang * 180 / M_PI;
@@ -344,14 +344,14 @@ void PublishLaserScanFan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedP
 	{
 		if (inverted)
 		{
-			min_pos = ROSAng(fan->angle / 10) * 10 * M_PI / 1800;
-			max_pos = min_pos + fan->span * M_PI / 1800;
+			min_pos = ROSAng(fan->angle / 10+ collect_angle) * 10 * M_PI / 1800;
+			max_pos = -min_pos + (fan->span+collect_angle*10 )* M_PI / 1800;
 		}
 		else
 		{
 
-			min_pos = ROSAng(fan->angle / 10) * 10 * M_PI / 1800;
-			max_pos = min_pos - fan->span * M_PI / 1800;
+			min_pos = ROSAng(fan->angle / 10- collect_angle) * 10 * M_PI / 1800;
+			max_pos = min_pos - (fan->span- collect_angle*10) * M_PI / 1800;
 		}
 	}
 
@@ -530,7 +530,7 @@ void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr 
 					  double min_dist, double max_dist, bool with_filter, double min_ang, double max_ang,
 					  bool inverted, bool reversed, double zero_shift,
 					  bool from_zero, uint32_t *ts_beg, uint32_t *ts_end,
-					  const std::vector<Range> &custom_masks)
+					  const std::vector<Range> &custom_masks, int collect_angle)
 {
 	sensor_msgs::msg::LaserScan msg;
 
@@ -579,14 +579,14 @@ void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr 
 		N = GetCount(nfan, fans, min_deg, max_deg, min_pos, max_pos);
 		if (inverted)
 		{
-			msg.angle_min = min_pos * M_PI / 180;
-			msg.angle_max = max_pos * M_PI / 180;
+			msg.angle_min = min_pos * M_PI / 180+ (float)collect_angle / 180 * M_PI;
+			msg.angle_max = max_pos * M_PI / 180+ (float)collect_angle / 180 * M_PI;
 			//printf("data1:deg:%lf   %lf  angle:%lf   %lf   %d\n",min_deg,max_deg,msg.angle_min,msg.angle_max,N);
 		}
 		else
 		{
-			msg.angle_min = max_pos * M_PI / 180;
-			msg.angle_max = min_pos * M_PI / 180;
+			msg.angle_min = max_pos * M_PI / 180-(float)collect_angle / 180 * M_PI;
+			msg.angle_max = min_pos * M_PI / 180- (float)collect_angle / 180 * M_PI;
 		}
 		msg.angle_increment = (msg.angle_max - msg.angle_min) / (N - 1);
 	}
@@ -611,14 +611,14 @@ void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr 
 		{
 			if (inverted)
 			{
-				msg.angle_min = -M_PI;
-				msg.angle_max = M_PI - (2 * M_PI) / N;
+				msg.angle_min = -M_PI + (float)collect_angle / 180 * M_PI;
+				msg.angle_max = M_PI - (2 * M_PI) / N + (float)collect_angle / 180 * M_PI;
 				msg.angle_increment = M_PI * 2 / N;
 			}
 			else
 			{
-				msg.angle_min = M_PI;
-				msg.angle_max = -M_PI + (2 * M_PI) / N;
+				msg.angle_min = M_PI - (float)collect_angle / 180 * M_PI;
+				msg.angle_max = -M_PI + (2 * M_PI) / N - (float)collect_angle / 180 * M_PI;
 				msg.angle_increment = -M_PI * 2 / N;
 			}
 		}
@@ -759,7 +759,8 @@ uint32_t get_device_ability(const std::string &platform)
 			DF_SMOOTHED |
 			DF_WITH_RESAMPLE |
 			DF_WITH_UUID |
-			EF_ENABLE_ALARM_MSG;
+			EF_ENABLE_ALARM_MSG|
+			DF_WITH_RPM;
 	}
 	else if (platform == "LDS-50C-2")
 	{
@@ -767,7 +768,8 @@ uint32_t get_device_ability(const std::string &platform)
 			   DF_WITH_INTENSITY |
 			   DF_DESHADOWED |
 			   DF_SMOOTHED |
-			   DF_WITH_UUID;
+			   DF_WITH_UUID|
+			   DF_WITH_RPM;;
 	}
 	else if (platform == "LDS-50C-S")
 	{
@@ -946,6 +948,9 @@ int main(int argc, char *argv[])
 	READ_PARAM(bool, "Savelog", Savelog, false);
 	READ_PARAM(std::string, "logPath", logPath, std::string("/opt/log"));
 
+	READ_PARAM(int, "error_circle", error_circle, 3);
+	READ_PARAM(double, "error_scale", error_scale, 0.9);
+
 
 	std::vector<Range> custom_masks;
 
@@ -971,7 +976,7 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < lidar_count; i++)
 	{
 		parsers[i] = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res,
-								with_chk, dev_id);
+								with_chk, dev_id, error_circle, error_scale);
 		hubs[i] = new PubHub;
 		hubs[i]->nfan = 0;
 		pthread_mutex_init(&hubs[i]->mtx, NULL);
@@ -1034,7 +1039,7 @@ int main(int argc, char *argv[])
 											min_dist, max_dist,
 											with_angle_filter, min_angle, max_angle,
 											inverted, reversed, zero_shift,
-											custom_masks);
+											custom_masks,collect_angle);
 						// printf("free %x\n", fans[0]);
 					}
 					delete fans[0];
@@ -1053,7 +1058,7 @@ int main(int argc, char *argv[])
 						PublishLaserScan(laser_pubs[i], n, fans, frame_id, min_dist, max_dist,
 										 with_angle_filter, min_angle, max_angle,
 										 inverted, reversed, zero_shift, from_zero,
-										 ts_beg, ts_end, custom_masks);
+										 ts_beg, ts_end, custom_masks,collect_angle);
 					}
 
 					for (int i = 0; i < n; i++)

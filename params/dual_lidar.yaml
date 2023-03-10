@@ -35,3 +35,6 @@ bluesea_node:
     local_port: 6668
     group_ip: "224.1.2.3"
     dev_id: -1
+    collect_angle: 0
+    error_circle: 3
+    error_scale: 0.9

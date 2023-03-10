@@ -32,3 +32,6 @@ bluesea_node:
     group_ip: "224.1.2.3"
     dev_id: -1
     alarm_msg: false
+    collect_angle: 0
+    error_circle: 3
+    error_scale: 0.9

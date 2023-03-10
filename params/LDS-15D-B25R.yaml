@@ -22,3 +22,6 @@ bluesea_node:
     with_checksum: true
     rpm: 600
     topic: "scan"
+    collect_angle: 0
+    error_circle: 3
+    error_scale: 0.9
