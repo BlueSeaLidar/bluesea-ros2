@@ -213,10 +213,11 @@ struct Parser
 	FanSegment *fan_segs;
 	int error_circle;
 	float error_scale;
+	int direction;
 };
 
 HParser ParserOpen(int raw_bytes, uint32_t device_ability,uint32_t flags,int init_rpm,
-				   double resample_res,bool with_chk,uint32_t dev_id,int error_circle,double error_scale);
+				   double resample_res,bool with_chk,uint32_t dev_id,int error_circle,double error_scale,int direction);
 
 typedef bool (*Script)(void *, int cmd_len, const char *cmd_str,
 					   int pattern_len, const char *pattern_str,

@@ -330,7 +330,8 @@ void PublishLaserScanFan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedP
 		}
 	
 	}
-	
+	if(reversed)
+		collect_angle = -collect_angle;
 	double min_pos, max_pos;
 	if (with_filter)
 	{
@@ -573,6 +574,8 @@ void PublishLaserScan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr 
 
 	//min_deg -= zero_shift* 180 / M_PI;
 	//max_deg -= zero_shift* 180 / M_PI;
+	if(reversed)
+		collect_angle = -collect_angle;
 	if (with_filter)
 	{
 		double min_pos, max_pos;
@@ -950,7 +953,7 @@ int main(int argc, char *argv[])
 
 	READ_PARAM(int, "error_circle", error_circle, 3);
 	READ_PARAM(double, "error_scale", error_scale, 0.9);
-
+	READ_PARAM(int, "direction", direction, -1);
 
 	std::vector<Range> custom_masks;
 
@@ -976,7 +979,7 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < lidar_count; i++)
 	{
 		parsers[i] = ParserOpen(raw_bytes, device_ability, init_states, init_rpm, resample_res,
-								with_chk, dev_id, error_circle, error_scale);
+								with_chk, dev_id, error_circle, error_scale,direction);
 		hubs[i] = new PubHub;
 		hubs[i]->nfan = 0;
 		pthread_mutex_init(&hubs[i]->mtx, NULL);

@@ -242,7 +242,6 @@ void *UdpThreadProc(void *p)
 	UDPInfo *info = (UDPInfo *)p;
 
 	int fd_udp = info->fd_udp;
-	int error_num = 0;
 	// send requirement to lidar
 	if (!info->is_group_listener)
 	{
