@@ -360,7 +360,7 @@ void *UdpThreadProc(void *p)
 
 				if (id == -1)
 				{
-					printf("packet from unknown address %s\n", inet_ntoa(addr.sin_addr));
+					//printf("packet from unknown address %s\n", inet_ntoa(addr.sin_addr));
 				}
 				else if (buf[0] == 0x4c && buf[1] == 0x48 && buf[2] == ~0x41 && buf[3] == ~0x4b)
 				{
