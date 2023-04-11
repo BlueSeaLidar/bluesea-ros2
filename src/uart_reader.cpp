@@ -190,7 +190,7 @@ bool uart_talk(void *hnd,
 		{
 			if (nfetch > 0)
 			{
-				if (strcmp(cmd, "LXVERH") == 0 || strcmp(cmd, "LUUIDH") == 0)
+				if (strcmp(cmd, "LXVERH") == 0 || strcmp(cmd, "LUUIDH") == 0||strcmp(cmd, "LTYPEH") == 0)
 				{
 					memcpy(fetch, buf + i + nhdr, nfetch);
 					fetch[nfetch] = 0;

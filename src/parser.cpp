@@ -7,7 +7,8 @@
 #include <sys/stat.h>
 #include "parser.h"
 #include "alarm.h"
-
+char g_uuid[32] = "";
+char g_model[16] = "";
 #if 0
 short LidarAng2ROS(short ang)
 {
@@ -542,11 +543,11 @@ static int MsgProc(Parser *parser, int len, unsigned char *buf)
 	if (len >= 8 && buf[0] == 'S' && buf[1] == 'T' && buf[6] == 'E' && buf[7] == 'D')
 	{
 		parser->flags = update_flags(buf + 2);
-		return 0;
+		return 1;
 	}
 	else if (alarmProc(buf, len))
 	{
-		return 0;
+		return 2;
 	}
 	else
 	{
@@ -586,7 +587,25 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 
 		if (unk > 0)
 		{
-			MsgProc(parser, unk, unknown);
+			int ret = MsgProc(parser, unk, unknown);
+			if (ret == 1)
+			{
+				int8_t flag = parser->flags >> 24;
+				// printf("%d  %s\n", flag,g_model);
+				if (strcmp(g_model, "LDS-50C-R") == 0 || strcmp(g_model, "LDS-E200-R") == 0)
+				{
+					if (flag & 0x1)
+						printf("bottom plate low voltage\n");
+					if (flag & 0x2)
+						printf("bottom plate high voltage\n");
+					if (flag & 0x4)
+						printf("abnormal motor head temperature\n");
+					if (flag & 0x8)
+						printf("motor head low voltage\n");
+					if (flag & 0x10)
+						printf("motor head high voltage\n");
+				}
+			}
 			unk = 0;
 		}
 
@@ -737,7 +756,7 @@ HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states,
 	parser->dev_id = dev_id;
 	parser->error_circle = error_circle;
 	parser->error_scale = error_scale;
-	parser->direction = direction; 
+	parser->direction = direction;
 	return parser;
 }
 
@@ -790,7 +809,6 @@ int ParserRunStream(HParser hP, int len, unsigned char *bytes, RawData *fans[])
 }
 int alarmProc(unsigned char *buf, int len)
 {
-	// 报�?�信�?打印
 	if (memcmp(buf, "LMSG", 4) == 0)
 	{
 		if (len >= (int)sizeof(LidarAlarm))
@@ -798,7 +816,6 @@ int alarmProc(unsigned char *buf, int len)
 			LidarAlarm *msg = (LidarAlarm *)buf;
 			if (msg->hdr.type >= 0x100)
 			{
-				// 说明有LMSG_ALARM报�?�信�?
 				if (getbit(msg->hdr.data, 12) == 1)
 				{
 					printf("ALARM LEVEL:OBSERVE  MSG TYPE:%d ZONE ACTIVE:%x\n", msg->hdr.type, msg->zone_actived);
@@ -880,7 +897,6 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 	Parser *parser = (Parser *)hP.hParser;
 
 	uint8_t type = buf[0];
-	// 报�?�信�?打印
 	if (alarmProc(buf, len))
 		return 0;
 
@@ -1016,7 +1032,12 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 		//
 		return 0;
 	}
+	if (buf[0] == 0x4f && buf[1] == 0x4f && buf[2] == 0x42 && buf[3] == 0x53)
+	{
+		return 0;
+	}
 	printf("skip packet %08x len %d\n", *(uint32_t *)buf, len);
+	// printf("qwer:%02X %02X %02X %02X\n", buf[0],buf[1],buf[2],buf[3]);
 	return 0;
 }
 
@@ -1037,9 +1058,6 @@ int strip(const char *s, char *buf)
 	buf[len] = 0;
 	return len;
 }
-
-char g_uuid[32] = "";
-
 bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, void *hnd)
 {
 
@@ -1066,7 +1084,17 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 			}
 		}
 	}
-
+	for (unsigned int i = 0; i < index; i++)
+	{
+		if (strcmp(type, "udp") == 0)
+			break;
+		if (script(hnd, 6, "LTYPEH", 8, "TYPE ID:", 16, buf))
+		{
+			strip(buf, g_model);
+			printf("get product model : \'%s\'\n", g_model);
+			break;
+		}
+	}
 	// setup output data format
 	if (parser->device_ability & DF_UNIT_IS_MM)
 	{
@@ -1220,7 +1248,7 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 	// enable/disable alaram message uploading
 	if (parser->device_ability & EF_ENABLE_ALARM_MSG)
 	{
-		char cmd[32];
+		char cmd[16];
 		sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
 		for (unsigned int i = 0; i < index; i++)
 		{
@@ -1234,10 +1262,10 @@ bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, vo
 
 	for (unsigned int i = 0; i < index; i++)
 	{
-		if(parser->direction<0)
+		if (parser->direction < 0)
 			break;
-		char cmd[8]={0};
-		sprintf(cmd,"LSCCW:%dH",parser->direction);
+		char cmd[16] = {0};
+		sprintf(cmd, "LSCCW:%dH", parser->direction);
 		if (s_pack(hnd, strlen(cmd), cmd, result))
 		{
 			printf("set direction %s\n", result);
