@@ -14,6 +14,8 @@ bluesea_node:
     with_angle_filter: false
     min_angle: -3.14159
     max_angle: 3.14159
+    mask1: "0,3.14"
+    mask2: "-3,-2"
     hard_resample: false
     soft_resample: false
     resample_res: 1.00
@@ -35,4 +37,3 @@ bluesea_node:
     collect_angle: 0
     error_circle: 3
     error_scale: 0.9
-    direction: 0

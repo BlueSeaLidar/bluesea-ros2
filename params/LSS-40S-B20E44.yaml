@@ -16,7 +16,7 @@ bluesea_node:
     max_angle: 3.14159
     hard_resample: true
     soft_resample: false
-    resample_res: 1.0
+    resample_res: 1.00
     unit_is_mm: true
     with_confidence: true
     with_checksum: true
@@ -26,7 +26,7 @@ bluesea_node:
     inverted: false
     reversed: false
     topic: "scan"
-    lidar_ip: "192.168.0.140"
+    lidar_ip: "192.168.158.98"
     lidar_port: 6543
     local_port: 6668
     group_ip: "224.1.2.3"

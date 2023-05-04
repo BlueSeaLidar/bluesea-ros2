@@ -16,7 +16,7 @@ bluesea_node:
     max_angle: 3.14159
     hard_resample: true
     soft_resample: false
-    resample_res: 1
+    resample_res: 1.00
     unit_is_mm: true
     with_confidence: true
     with_checksum: true
