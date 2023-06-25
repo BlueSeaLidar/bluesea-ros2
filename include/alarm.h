@@ -34,4 +34,5 @@ struct LidarAlarm
 	uint8_t all_states[32];
 	uint32_t reserved[11];
 };
+
 #endif

@@ -26,7 +26,7 @@ bluesea_node:
 #CONNECT#
     type: "uart"
     port: "/dev/ttyUSB0"
-    baud_rate: 921600
+    baud_rate: 230400
     #FITTER#
     filter_open: false  #滤波生效开关
     max_range: 20.0 #滤波生效的最大距离
@@ -42,4 +42,4 @@ bluesea_node:
     with_smooth: -1
     with_deshadow: -1
     alarm_msg: -1
-    rpm: -1
+    rpm: -1 #E120不支持修改

@@ -1,6 +1,6 @@
 bluesea_node:
   ros__parameters:
-  #ROS2#
+  #ROS2
     frame_id: "map"
     topic: "scan"
   #DATA#
@@ -23,10 +23,9 @@ bluesea_node:
     max_dist: 50.0
     error_circle: 3
     error_scale: 0.9
-#CONNECT#
-    type: "uart"
-    port: "/dev/ttyUSB0"
-    baud_rate: 921600
+  #CONNECT#
+    type: "vpc"
+    port: "/dev/ttyACM0"
     #FITTER#
     filter_open: false  #滤波生效开关
     max_range: 20.0 #滤波生效的最大距离
@@ -34,8 +33,7 @@ bluesea_node:
     max_range_difference: 0.1 #离异点判断的物理范围
     filter_window: 1 #判断离异点下标的范围
   #GET#
-    uuid:  -1
-    model:  1
+    uuid:  1
   #SET#
     resample_res: -1.0
     with_confidence: -1
@@ -43,3 +41,9 @@ bluesea_node:
     with_deshadow: -1
     alarm_msg: -1
     rpm: -1
+    direction:  -1
+    ats: 1
+
+
+   
+

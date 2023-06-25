@@ -2,6 +2,7 @@
 #define _PARSER_
 #include <arpa/inet.h>
 #include <string>
+#include<iostream>
 #define DF_UNIT_IS_MM 0x0001
 #define DF_WITH_INTENSITY 0X0002
 #define DF_DESHADOWED 0x0004
@@ -17,7 +18,7 @@
 
 #define MAX_FANS 120
 
-#define MAX_POINTS 1000
+#define MAX_POINTS 500
 
 // #define ANYONE 0x1234abcd
 #define ANYONE -1
@@ -60,7 +61,7 @@ struct RawData
 	unsigned short last;
 	unsigned short fend;
 	// short ros_angle;	// 0.1 degree
-	DataPoint points[MAX_POINTS];
+	struct DataPoint points[MAX_POINTS];
 	uint32_t ts[2];
 	uint8_t counterclockwise;
 
@@ -195,43 +196,97 @@ struct FanSegment
 
 	struct FanSegment *next;
 };
+struct CommandList
+{
+	char  uuid[12];
+	char  model[12];
+	char  rpm[12];
+	char  res[12];
+	char  smooth[12];
+	char fitter[12];
+	char confidence[12];
+	char unit_mm[12];
+	
+	char alarm[12];
+	char direction[12];
+	char ats[12];
 
+
+};
 struct Parser
 {
 	bool stream_mode;
 	int rest_len;
 	unsigned char rest_buf[BUF_SIZE];
-	uint32_t flags;
-	uint32_t device_ability;
-	uint32_t init_states;
-	int init_rpm;
-	double resample_res;
 	bool with_chk;
 	int raw_mode;
 	uint32_t dev_id;
-
+	uint32_t flags;
 	FanSegment *fan_segs;
 	int error_circle;
 	float error_scale;
-	int direction;
+	bool is_from_zero;
+	char logPath[256];
+	CommandList cmd;
+	char ip[16];
+	int port;
 };
 
-HParser ParserOpen(int raw_bytes, uint32_t device_ability,uint32_t flags,int init_rpm,
-				   double resample_res,bool with_chk,uint32_t dev_id,int error_circle,double error_scale,int direction);
+struct UartState
+{
+    //byte1
+    bool unit_mm;//0 cm 1 mm
+    bool with_conf;//0 close 1 open
+    bool with_smooth;
+    bool with_fitter;
+    bool span_9;
+    bool span_18;
+    bool span_other;
+    bool resampele;//重采样
+    //byte2
 
-typedef bool (*Script)(void *, int cmd_len, const char *cmd_str,
-					   int pattern_len, const char *pattern_str,
-					   int nfetch, char *fetch);
+    bool moter_turn;//0正向 1反向
+    bool span_8;
+    bool span_16;
+    //byte3
+    bool byte3_error0;
+    bool byte3_error1;
+    bool byte3_error2;
+    bool byte3_error3;
+    //byte4
+    bool byte4_error0;
+    bool byte4_error1;
+    bool byte4_error2;
+    bool byte4_error3;
+    bool byte4_error4;
+    bool byte4_error5;
+    bool byte4_error6;
+    bool byte4_error7;
+};
 
-typedef bool (*S_PACK)(void *, int cmd_len, const char *cmd_str, void *);
-bool ParserScript(HParser, Script, S_PACK, const char *type, void *);
 
+
+HParser ParserOpen(int raw_bytes, bool with_chksum, uint32_t dev_id,
+				   int error_circle, double error_scale, bool from_zero,
+				   char *logpath, CommandList cmd, char *ip, int port);
+
+typedef bool (*C_PACK)(int fd_udp, const char* ip, int port,int n, const char *cmd,int nhdr, const char *hdr_str,int nfetch, char *fetch,const char *logPath);
+typedef bool (*S_PACK)(int fd_udp, const char* ip, int port, int n, const char *cmd,void *result,const char *logPath);
+typedef bool (*UART_TALK)(int fd_udp,int n, const char *cmd,int nhdr, const char *hdr_str,int nfetch, char *fetch,const char*logpath);
+typedef bool (*VPC_TALK)(int fd_udp, int mode, int len, const char *cmd, int nfetch, void *result, const char *logpath);
+
+bool setup_lidar_udp(HParser hP, void *func1, void *func2, const char *type, int handle);
+bool setup_lidar_uart(HParser hP, void *func1, void *func2, const char *type, int handle);
+bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int handle);
+
+
+int strip(const char *s, char *buf);
 int ParserClose(HParser);
 int ParserRunStream(HParser, int len, unsigned char *buf, RawData *fans[]);
 int ParserRun(LidarNode, int len, unsigned char *buf, RawData *fans[]);
 
 void SetTimeStamp(RawData *);
-void saveLog(bool isSaveLog, const char *logPath, int type, const char *ip, const int port, const unsigned char *buf, unsigned int len);
+void saveLog(const char *logPath, int type, const char *ip, const int port, const unsigned char *buf, unsigned int len);
 int mkpathAll(std::string s, mode_t mode);
 unsigned int stm32crc(unsigned int *ptr, unsigned int len);
 int alarmProc(unsigned char *buf, int len);

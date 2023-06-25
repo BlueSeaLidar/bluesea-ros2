@@ -218,7 +218,6 @@ static FanSegment *GetFanSegment(const RawDataHdr7 &hdr, uint8_t *pdat, bool /*w
 		delete fan_seg;
 		return NULL;
 	}
-
 	return fan_seg;
 }
 
@@ -569,7 +568,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 	int unk = 0;
 	unsigned char unknown[512];
 
-	while (idx < len - 32 && *nfan < max_fan)
+	while (idx < len - 128 && *nfan < max_fan)
 	{
 		unsigned char type = is_data(buf + idx);
 		if (type == 0)
@@ -612,7 +611,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 		RawDataHdr hdr;
 		memcpy(&hdr, buf + idx, HDR_SIZE);
 
-		if (hdr.N > MAX_POINTS || hdr.N < 10)
+		if (hdr.N > MAX_POINTS)
 		{
 			printf("points number %d seem not correct\n", hdr.N);
 			idx += 2;
@@ -738,25 +737,24 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 	return idx;
 }
 
-HParser ParserOpen(int raw_bytes, uint32_t device_ability, uint32_t init_states,
-				   int init_rpm, double resample_res, bool with_chksum, uint32_t dev_id,
-				   int error_circle, double error_scale, int direction)
+HParser ParserOpen(int raw_bytes, bool with_chksum, uint32_t dev_id,
+				   int error_circle, double error_scale, bool from_zero,
+				   char *logpath, CommandList cmd, char *ip, int port)
 {
 	Parser *parser = new Parser;
 
 	parser->rest_len = 0;
 	parser->raw_mode = raw_bytes;
-	parser->init_rpm = init_rpm;
 	parser->with_chk = with_chksum;
-	parser->device_ability = device_ability;
-	parser->init_states = init_states;
-	parser->flags = init_states;
-	parser->resample_res = resample_res;
 	parser->fan_segs = NULL;
 	parser->dev_id = dev_id;
 	parser->error_circle = error_circle;
 	parser->error_scale = error_scale;
-	parser->direction = direction;
+	parser->cmd = cmd;
+	parser->is_from_zero = from_zero;
+	strcpy(parser->logPath, logpath);
+	strcpy(parser->ip, ip);
+	parser->port = port;
 	return parser;
 }
 
@@ -1052,232 +1050,401 @@ int strip(const char *s, char *buf)
 			buf[len++] = s[i];
 		else if (s[i] >= '0' && s[i] <= '9')
 			buf[len++] = s[i];
+		else if (s[i] == '-')
+			buf[len++] = s[i];
 		else if (len > 0)
 			break;
 	}
 	buf[len] = 0;
 	return len;
 }
-bool ParserScript(HParser hP, Script script, S_PACK s_pack, const char *type, void *hnd)
+bool setup_lidar_udp(HParser hP, void *func1, void *func2, const char *type, int handle)
 {
-
+	C_PACK func1_pack = (C_PACK)func1;
+	S_PACK func2_pack = (S_PACK)func2;
 	Parser *parser = (Parser *)hP;
 	unsigned int index = 5;
+	int cmdLength;
 	char buf[32];
 	char result[3] = {0};
 	result[2] = '\0';
-	if (parser->device_ability & DF_WITH_UUID)
-	{
-		for (unsigned int i = 0; i < index; i++)
-		{
-			if (script(hnd, 6, "LUUIDH", 11, "PRODUCT SN:", 16, buf))
-			{
-				strip(buf, g_uuid);
-				printf("get product SN : \'%s\'\n", g_uuid);
-				break;
-			}
-			else if (script(hnd, 6, "LUUIDH", 10, "VENDOR ID:", 16, buf))
-			{
-				strip(buf, g_uuid);
-				printf("get product SN : \'%s\'\n", g_uuid);
-				break;
-			}
-		}
-	}
+	
 	for (unsigned int i = 0; i < index; i++)
 	{
-		if (strcmp(type, "udp") == 0)
+		cmdLength = strlen(parser->cmd.uuid);
+		if (cmdLength <= 0)
 			break;
-		if (script(hnd, 6, "LTYPEH", 8, "TYPE ID:", 16, buf))
+		if (func1_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.uuid, 11, "PRODUCT SN:", 16, buf, parser->logPath))
+		{
+			strip(buf, g_uuid);
+			printf("get product SN : \'%s\'\n", g_uuid);
+			break;
+		}
+		else if (func1_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.uuid, 10, "VENDOR ID:", 16, buf, parser->logPath))
+		{
+			strip(buf, g_uuid);
+			printf("get product SN : \'%s\'\n", g_uuid);
+			break;
+		}
+	}
+	//printf(" %d %s %s\n",__LINE__,__FUNCTION__,parser->cmd.model);
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.model);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.model, 8, "TYPE ID:", 16, buf, parser->logPath))
 		{
 			strip(buf, g_model);
 			printf("get product model : \'%s\'\n", g_model);
 			break;
 		}
 	}
-	// setup output data format
-	if (parser->device_ability & DF_UNIT_IS_MM)
-	{
-		for (unsigned int i = 0; i < index; i++)
-		{
-			const char *cmd = (parser->init_states & DF_UNIT_IS_MM) ? "LMDMMH" : "LMDCMH";
-			if (script(hnd, 6, cmd, 10, "SET LiDAR ", 12, buf))
-			{
-				printf("set LiDAR unit %s \n", buf);
-				break;
-			}
-		}
-	}
-
-	// enable/disable output intensity
-	if (parser->device_ability & DF_WITH_INTENSITY)
-	{
-		for (unsigned int i = 0; i < index; i++)
-		{
-			const char *cmd = (parser->init_states & DF_WITH_INTENSITY) ? "LOCONH" : "LNCONH";
-			if (script(hnd, 6, cmd, 6, "LiDAR ", 12, buf))
-			{
-				printf("set LiDAR confidence %s \n", buf);
-				break;
-			}
-		}
-	}
 
 	// enable/disable shadow filter
-	if (parser->device_ability & DF_DESHADOWED)
+	for (unsigned int i = 0; i < index; i++)
 	{
-		if (strcmp(type, "udp") == 0)
+		cmdLength = strlen(parser->cmd.fitter);
+		if (cmdLength <= 0)
+			break;
+
+		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.fitter, result, parser->logPath))
 		{
-			for (unsigned int i = 0; i < index; i++)
-			{
-				const char *cmd = (parser->init_states & DF_DESHADOWED) ? "LSDSW:1H" : "LSDSW:0H";
-				if (s_pack(hnd, strlen(cmd), cmd, result))
-				{
-					printf("set LiDAR shadow filter %s %s\n", cmd, result);
-					break;
-				}
-			}
-		}
-		else
-		{
-			for (unsigned int i = 0; i < index; i++)
-			{
-				const char *cmd = (parser->init_states & DF_DESHADOWED) ? "LFFF1H" : "LFFF0H";
-				if (script(hnd, 6, cmd, 6, "LiDAR ", 12, buf))
-				{
-					printf("set LiDAR shadow filter %s \n", buf);
-					break;
-				}
-			}
+			printf("set LiDAR shadow filter %s %s\n", parser->cmd.fitter, result);
+			break;
 		}
 	}
-
 	// enable/disable smooth
-	if (parser->device_ability & DF_SMOOTHED)
+	for (unsigned int i = 0; i < index; i++)
 	{
-		if (strcmp(type, "udp") == 0)
+		cmdLength = strlen(parser->cmd.smooth);
+		if (cmdLength <= 0)
+			break;
+
+		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.smooth, result, parser->logPath))
 		{
-			for (unsigned int i = 0; i < index; i++)
-			{
-				const char *cmd = (parser->init_states & DF_SMOOTHED) ? "LSSMT:1H" : "LSSMT:0H";
-				if (s_pack(hnd, strlen(cmd), cmd, result))
-				{
-					printf("set LiDAR smooth  %s %s\n", cmd, result);
-					break;
-				}
-			}
-		}
-		else
-		{
-			for (unsigned int i = 0; i < index; i++)
-			{
-				const char *cmd = (parser->init_states & DF_SMOOTHED) ? "LSSS1H" : "LSSS0H";
-				if (script(hnd, 6, cmd, 6, "LiDAR ", 12, buf))
-				{
-					printf("set LiDAR smooth to %s\n", buf);
-					break;
-				}
-			}
+			printf("set LiDAR smooth  %s %s\n", parser->cmd.smooth, result);
+			break;
 		}
 	}
-
 	// setup rpm
-	if (parser->device_ability & DF_WITH_RPM)
+	for (unsigned int i = 0; i < index; i++)
 	{
-		if (parser->init_rpm > 300 && parser->init_rpm < 3000)
-		{
-			for (unsigned int i = 0; i < index; i++)
-			{
-				char cmd[32];
-				sprintf(cmd, "LSRPM:%dH", parser->init_rpm);
-				if (strcmp(type, "udp") == 0)
-				{
-					if (s_pack(hnd, strlen(cmd), cmd, result))
-					{
-						printf("set RPM to %d %s\n", parser->init_rpm, result);
-						break;
-					}
-				}
-				else
-				{
-					if (script(hnd, strlen(cmd), cmd, 3, "RPM", 12, buf))
-					{
-						printf("set RPM to %d %s\n", parser->init_rpm, buf);
-						break;
-					}
-				}
-			}
-		}
-	}
+		cmdLength = strlen(parser->cmd.rpm);
+		if (cmdLength <= 0)
+			break;
 
-	if (parser->device_ability & DF_WITH_RESAMPLE)
-	{
-		for (unsigned int i = 0; i < index; i++)
+		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.rpm, result, parser->logPath))
 		{
-			char cmd[32] = "";
-			if (parser->init_states & DF_WITH_RESAMPLE)
-			{
-				if (parser->resample_res == 0 || parser->resample_res == 1)
-				{
-					sprintf(cmd, "LSRES:%dH", int(parser->resample_res));
-				}
-				else
-				{
-					sprintf(cmd, "LSRES:%dH", int(parser->resample_res * 1000));
-				}
-				char pattern[] = "set resolution ";
-				if (strcmp(type, "udp") == 0)
-				{
-					if (script(hnd, strlen(cmd), cmd, 2, "OK", 0, NULL))
-					{
-						printf("set resolution %s OK\n", cmd);
-						break;
-					}
-				}
-				else
-				{
-					if (script(hnd, strlen(cmd), cmd, strlen(pattern), pattern, 12, buf))
-					{
-						printf("set resolution %s\n", buf);
-						break;
-					}
-				}
-			}
-		}
-	}
-	// enable/disable alaram message uploading
-	if (parser->device_ability & EF_ENABLE_ALARM_MSG)
-	{
-		char cmd[16];
-		sprintf(cmd, "LSPST:%dH", (parser->init_states & EF_ENABLE_ALARM_MSG) ? 3 : 1);
-		for (unsigned int i = 0; i < index; i++)
-		{
-			if (s_pack(hnd, strlen(cmd), cmd, result))
-			{
-				printf("set alarm_msg %s\n", result);
-				break;
-			}
+			printf("%s %s\n", parser->cmd.rpm, result);
+			break;
 		}
 	}
 
 	for (unsigned int i = 0; i < index; i++)
 	{
-		if (parser->direction < 0)
+		cmdLength = strlen(parser->cmd.res);
+		if (cmdLength <= 0)
 			break;
-		char cmd[16] = {0};
-		sprintf(cmd, "LSCCW:%dH", parser->direction);
-		if (s_pack(hnd, strlen(cmd), cmd, result))
+
+		if (func1_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.res, 2, "OK", 0, NULL, parser->logPath))
+		{
+			printf("%s OK\n", parser->cmd.res);
+			break;
+		}
+	}
+
+	// enable/disable alaram message uploading
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.alarm);
+		if (cmdLength <= 0)
+			break;
+		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.alarm, result, parser->logPath))
+		{
+			printf("set alarm_msg %s\n", result);
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.direction);
+		if (cmdLength <= 0)
+			break;
+		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.direction, result, parser->logPath))
 		{
 			printf("set direction %s\n", result);
 			break;
 		}
 	}
 
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.ats);
+		if (cmdLength <= 0)
+			break;
+		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.ats, result, parser->logPath))
+		{
+			printf("set ats %s\n", result);
+			break;
+		}
+	}
 	return true;
 }
-void saveLog(bool isSaveLog, const char *logPath, int type, const char *ip, const int port, const unsigned char *buf, unsigned int len)
+
+bool setup_lidar_uart(HParser hP, void *func1, void *func2, const char *type, int handle)
 {
-	if (isSaveLog)
+	UART_TALK func1_pack = (UART_TALK)func1;
+	Parser *parser = (Parser *)hP;
+	unsigned int index = 5;
+	int cmdLength;
+	char buf[32];
+	char result[3] = {0};
+	result[2] = '\0';
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.uuid);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, cmdLength, parser->cmd.uuid, 11, "PRODUCT SN:", 16, buf, parser->logPath))
+		{
+			strip(buf, g_uuid);
+			printf("get product SN : \'%s\'\n", g_uuid);
+			break;
+		}
+		else if (func1_pack(handle, cmdLength, parser->cmd.uuid, 10, "VENDOR ID:", 16, buf, parser->logPath))
+		{
+			strip(buf, g_uuid);
+			printf("get product SN : \'%s\'\n", g_uuid);
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.model);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, cmdLength, parser->cmd.model, 8, "TYPE ID:", 16, buf, parser->logPath))
+		{
+			strip(buf, g_model);
+			printf("get product model : \'%s\'\n", g_model);
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.unit_mm);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, cmdLength, parser->cmd.unit_mm, 10, "SET LiDAR ", 12, buf, parser->logPath))
+		{
+			printf("set LiDAR unit %s \n", buf);
+			break;
+		}
+	}
+
+	// enable/disable output intensity
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.confidence);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, cmdLength, parser->cmd.confidence, 6, "LiDAR ", 12, buf, parser->logPath))
+		{
+			printf("set LiDAR confidence %s \n", buf);
+			break;
+		}
+	}
+	// enable/disable shadow filter
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.fitter);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, cmdLength, parser->cmd.fitter, 6, "LiDAR ", 12, buf, parser->logPath))
+		{
+			printf("set LiDAR shadow filter %s \n", buf);
+			break;
+		}
+	}
+	// enable/disable smooth
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.smooth);
+		if (cmdLength <= 0)
+			break;
+
+		if (func1_pack(handle, cmdLength, parser->cmd.smooth, 6, "LiDAR ", 12, buf, parser->logPath))
+		{
+			printf("set LiDAR smooth to %s\n", buf);
+			break;
+		}
+	}
+	// setup rpm
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.rpm);
+		if (cmdLength <= 0)
+			break;
+
+		if (func1_pack(handle, cmdLength, parser->cmd.rpm, 3, "RPM", 12, buf, parser->logPath))
+		{
+			printf("%s %s\n", parser->cmd.rpm, buf);
+			break;
+		}
+	}
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.res);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, cmdLength, parser->cmd.res, 15, "set resolution ", 12, buf, parser->logPath))
+		{
+			printf("set resolution %s\n", buf);
+			break;
+		}
+	}
+	return true;
+}
+
+bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int handle)
+{
+	VPC_TALK func1_pack = (VPC_TALK)func1;
+	//S_PACK func2_pack = (S_PACK)func2;
+	Parser *parser = (Parser *)hP;
+	unsigned int index = 5;
+	int cmdLength;
+	char buf[32];
+	char result[3] = {0};
+	result[2] = '\0';
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.uuid);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, 0x0043,cmdLength, parser->cmd.uuid, 36,buf, parser->logPath))
+		{
+			printf("get product SN : \'%s\'\n", buf);
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.model);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, 0x0043, cmdLength, parser->cmd.model, 36, buf, parser->logPath))
+		{
+			strip(buf, g_model);
+			printf("get product model : \'%s\'\n", g_model);
+			break;
+		}
+	}
+
+	// enable/disable shadow filter
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.fitter);
+		if (cmdLength <= 0)
+			break;
+
+		if (func1_pack(handle,0x0053, cmdLength, parser->cmd.fitter, 16,result, parser->logPath))
+		{
+			printf("set LiDAR shadow filter %s %s\n", parser->cmd.fitter, result);
+			break;
+		}
+	}
+	// enable/disable smooth
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.smooth);
+		if (cmdLength <= 0)
+			break;
+
+		if (func1_pack(handle,0x0053, cmdLength, parser->cmd.smooth,16, result, parser->logPath))
+		{
+			printf("set LiDAR smooth  %s %s\n", parser->cmd.smooth, result);
+			break;
+		}
+	}
+	// setup rpm
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.rpm);
+		if (cmdLength <= 0)
+			break;
+
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.rpm,16, result, parser->logPath))
+		{
+			printf("%s %s\n", parser->cmd.rpm, result);
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.res);
+		if (cmdLength <= 0)
+			break;
+
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.res, 2,result , parser->logPath))
+		{
+			printf("%s %s\n", parser->cmd.res,result);
+			break;
+		}
+	}
+
+	// enable/disable alaram message uploading
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.alarm);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.alarm, 2,result, parser->logPath))
+		{
+			printf("set alarm_msg %s\n", result);
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.direction);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.direction, 2,result, parser->logPath))
+		{
+			printf("set direction %s\n", result);
+			break;
+		}
+	}
+
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.ats);
+		if (cmdLength <= 0)
+			break;
+		if (func1_pack(handle,  0x0053, cmdLength, parser->cmd.ats, 2,result, parser->logPath))
+		{
+			printf("set ats %s\n", result);
+			break;
+		}
+	}
+	return true;
+}
+
+
+
+void saveLog(const char *logPath, int type, const char *ip, const int port, const unsigned char *buf, unsigned int len)
+{
+	if (strlen(logPath) > 0)
 	{
 		FILE *fp = fopen(logPath, "aw");
 		if (fp)

@@ -26,7 +26,7 @@ bluesea_node:
 #CONNECT#
     type: "uart"
     port: "/dev/ttyUSB0"
-    baud_rate: 921600
+    baud_rate: 230400  #rate_list[ 230400, 256000 ]#
     #FITTER#
     filter_open: false  #滤波生效开关
     max_range: 20.0 #滤波生效的最大距离

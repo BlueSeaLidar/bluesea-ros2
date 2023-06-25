@@ -21,41 +21,14 @@
 #include <pthread.h>
 #include "alarm.h"
 #include "reader.h"
-
-struct UDPInfo
-{
-	char type[8]; //"udp"
-	int nnode;
-	LidarNode lidars[MAX_LIDARS];
-
-	int fd_udp;
-	int listen_port;
-	bool is_group_listener;
-	pthread_t thr;
-	bool isSaveLog;
-	char logPath[256];
-};
-
-struct ScriptParam
-{
-	UDPInfo *info;
-	int id;
-};
-
-struct KeepAlive
-{
-	uint32_t world_clock;
-	uint32_t mcu_hz;
-	uint32_t arrive;
-	uint32_t delay;
-	uint32_t reserved[4];
-};
+C_PACK c_pack;
+S_PACK s_pack;
 
 //
 bool send_cmd_udp_f(int fd_udp, const char *dev_ip, int dev_port,
 					int cmd, int sn,
 					int len, const void *snd_buf,
-					bool isSavelog, const char *logPath)
+					const char *logPath)
 {
 	unsigned char buffer[2048];
 	CmdHeader *hdr = (CmdHeader *)buffer;
@@ -90,44 +63,38 @@ bool send_cmd_udp_f(int fd_udp, const char *dev_ip, int dev_port,
 	// 	printf("send to %s:%d 0x%04x sn[%d] L=%d : %s\n",
 	// 			dev_ip, dev_port, cmd, sn, len, s);
 	// }
-	saveLog(isSavelog, logPath, 0, dev_ip, dev_port, buffer, len2);
+	saveLog(logPath, 0, dev_ip, dev_port, buffer, len2);
 
 	return true;
 }
 
 bool send_cmd_udp(int fd_udp, const char *dev_ip, int dev_port,
 				  int cmd, int sn,
-				  int len, const void *snd_buf, bool isSaveLog, const char *logPath)
+				  int len, const void *snd_buf, const char *logPath)
 {
 	// printf("send cmd %x len %d : %s\n", cmd, len, (char*)snd_buf);
-	return send_cmd_udp_f(fd_udp, dev_ip, dev_port, cmd, sn, len, snd_buf, isSaveLog, logPath);
+	return send_cmd_udp_f(fd_udp, dev_ip, dev_port, cmd, sn, len, snd_buf, logPath);
 }
 
-bool udp_talk_S_PACK(void *hnd, int n, const char *cmd, void *result)
+bool udp_talk_S_PACK(int fd_udp, const char *ip, int port, int n, const char *cmd, void *result, const char *logPath)
 {
-	ScriptParam *param = (ScriptParam *)hnd;
-	UDPInfo *info = param->info;
 	// int fd_udp = info->fd_udp;
-	int fd_udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	// int fd_udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
 	printf("send config : \'%s\' \n", cmd);
 
 	unsigned short sn = rand();
 
-	send_cmd_udp(fd_udp, info->lidars[param->id].ip, info->lidars[param->id].port,
-				 0x0053, sn, n, cmd, info->isSaveLog, info->logPath);
-
+	send_cmd_udp(fd_udp, ip, port, 0x0053, sn, n, cmd, logPath);
 	int ntry = 0;
-
-	time_t tst = time(NULL);
-	while (time(NULL) < tst + 3)
+	for (int i = 0; i < 1000; i++)
 	{
 		fd_set fds;
 		FD_ZERO(&fds);
 
 		FD_SET(fd_udp, &fds);
 
-		struct timeval to = {2, 0};
+		struct timeval to = {3, 0};
 		int ret = select(fd_udp + 1, &fds, NULL, NULL, &to);
 
 		if (ret <= 0)
@@ -151,33 +118,29 @@ bool udp_talk_S_PACK(void *hnd, int n, const char *cmd, void *result)
 				if (hdr->sign != 0x484c || hdr->sn != sn)
 					continue;
 
-				saveLog(info->isSaveLog, info->logPath, 1, info->lidars[param->id].ip, info->lidars[param->id].port, (unsigned char *)buf, sizeof(buf));
+				saveLog(logPath, 1, ip, port, (unsigned char *)buf, sizeof(buf));
 				// const int CODE_OK = 0x4b4f;
-				close(fd_udp);
 				memcpy(result, buf + sizeof(CmdHeader), 2);
 				return true;
 			}
 		}
 	}
 
-	printf("read %d packets, not response\n", ntry);
-	close(fd_udp);
+	printf("read %d packets, not response\n",ntry);
 	return false;
 }
 
-bool udp_talk_C_PACK(void *hnd, int n, const char *cmd, int nhdr, const char *hdr_str, int nfetch, char *fetch)
+bool udp_talk_C_PACK(int fd_udp, const char *ip, int port,
+					 int n, const char *cmd, int nhdr, const char *hdr_str,
+					 int nfetch, char *fetch, const char *logPath)
 {
-	ScriptParam *param = (ScriptParam *)hnd;
-	UDPInfo *info = param->info;
-	// int fd_udp = info->fd_udp;
-	int fd_udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+	// int fd_udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
 	printf("send command : \'%s\' \n", cmd);
-
 	unsigned short sn = rand();
 
-	send_cmd_udp(fd_udp, info->lidars[param->id].ip, info->lidars[param->id].port,
-				 0x0043, sn, n, cmd, info->isSaveLog, info->logPath);
+	send_cmd_udp(fd_udp, ip, port,0x0043, sn, n, cmd, logPath);
 
 	int ntry = 0;
 	time_t tst = time(NULL);
@@ -212,7 +175,7 @@ bool udp_talk_C_PACK(void *hnd, int n, const char *cmd, int nhdr, const char *hd
 				if (hdr->sign != 0x484c || hdr->sn != sn)
 					continue;
 
-				saveLog(info->isSaveLog, info->logPath, 1, info->lidars[param->id].ip, info->lidars[param->id].port, (unsigned char *)buf, sizeof(buf));
+				saveLog(logPath, 1,ip, port, (unsigned char *)buf, sizeof(buf));
 				char *payload = buf + sizeof(CmdHeader);
 				for (int i = 0; i < nr - nhdr - 1; i++)
 				{
@@ -232,28 +195,25 @@ bool udp_talk_C_PACK(void *hnd, int n, const char *cmd, int nhdr, const char *hd
 	}
 
 	printf("read %d packets, not response\n", ntry);
-
-	close(fd_udp);
 	return false;
 }
 
 void *UdpThreadProc(void *p)
 {
 	UDPInfo *info = (UDPInfo *)p;
-
 	int fd_udp = info->fd_udp;
+	int error_num = 0;
 	// send requirement to lidar
 	if (!info->is_group_listener)
 	{
-		for (int i = 0; i < info->nnode; i++)
-		{
-			char cmd[12] = "LUUIDH";
-			send_cmd_udp(fd_udp,
-						 info->lidars[i].ip, info->lidars[i].port,
-						 0x0043, rand(), 6, cmd, info->isSaveLog, info->logPath);
-		}
+		// for (int i = 0; i < info->nnode; i++)
+		// {
+		// 	char cmd[12] = "LUUIDH";
+		// 	send_cmd_udp(fd_udp,
+		// 				 info->lidars[i].ip, info->lidars[i].port,
+		// 				 0x0043, rand(), 6, cmd, info->logPath);
+		// }
 	}
-
 	char buf[1024];
 
 	timeval tv;
@@ -262,56 +222,20 @@ void *UdpThreadProc(void *p)
 	time_t tto = tv.tv_sec + 1;
 
 	uint32_t delay = 0;
-
+	c_pack = udp_talk_C_PACK;
+	s_pack = udp_talk_S_PACK;
 	if (!info->is_group_listener)
 	{
 		for (int i = 0; i < info->nnode; i++)
 		{
-			ScriptParam param;
-			param.info = info;
-			param.id = i;
-
-			// compare script  and lidar run arg , if different  set it
-			EEpromV101 eepromV101;
-			udp_talk_GS_PACK(info->fd_udp, info->lidars[i].ip, info->lidars[i].port, 0, NULL, false, NULL, &eepromV101);
-
-			Parser *parser = (Parser *)info->lidars[i].hParser;
-			// network lidar do not need   set unit and   confidence
-			clrbit(parser->device_ability, 0);
-			clrbit(parser->device_ability, 1);
-			if (eepromV101.with_filter == getbit(parser->init_states, 2))
-			{
-				clrbit(parser->device_ability, 2);
-			}
-			if (eepromV101.with_smooth == getbit(parser->init_states, 3))
-			{
-				clrbit(parser->device_ability, 3);
-			}
-			if (eepromV101.RPM == parser->init_rpm)
-			{
-				clrbit(parser->device_ability, 6);
-			}
-			if (eepromV101.with_resample == parser->resample_res * 1000 || eepromV101.with_resample == parser->resample_res)
-			{
-				clrbit(parser->device_ability, 4);
-			}
-			// 1/3    0/1
-			if (eepromV101.should_post == (getbit(parser->init_states, 16) == 1 ? 3 : 1))
-			{
-				clrbit(parser->device_ability, 16);
-			}
-			// printf("%d  %s  %d %lf\n",__LINE__,__FUNCTION__,eepromV101.with_resample,parser->resample_res);
-			ParserScript(info->lidars[i].hParser, udp_talk_C_PACK, udp_talk_S_PACK, info->type, &param);
+			setup_lidar_udp(info->lidars[i].hParser, (void*)c_pack, (void*)s_pack, info->type, info->fd_udp);
 		}
 	}
-
 	while (1)
 	{
 		fd_set fds;
 		FD_ZERO(&fds);
-
 		FD_SET(fd_udp, &fds);
-
 		struct timeval to = {1, 5};
 		int ret = select(fd_udp + 1, &fds, NULL, NULL, &to);
 
@@ -324,19 +248,18 @@ void *UdpThreadProc(void *p)
 					char cmd[12] = "LGCPSH";
 					send_cmd_udp(info->fd_udp,
 								 info->lidars[i].ip, info->lidars[i].port,
-								 0x0043, rand(), 6, cmd, info->isSaveLog, info->logPath);
+								 0x0043, rand(), 6, cmd, "");
 				}
 			}
 		}
 
 		if (ret < 0)
 		{
-			printf("select error\n");
+			 //printf("%d select error\n",fd_udp);
 			continue;
 		}
 
 		gettimeofday(&tv, NULL);
-
 		// read UDP data
 		if (FD_ISSET(fd_udp, &fds))
 		{
@@ -352,15 +275,14 @@ void *UdpThreadProc(void *p)
 					if (addr.sin_addr.s_addr == info->lidars[i].s_addr)
 					{
 						id = i;
-						saveLog(info->isSaveLog, info->logPath, 1, info->lidars[i].ip, info->lidars[i].port, (unsigned char *)buf, sizeof(buf));
+						//saveLog(logPath, 1, info->lidars[i].ip, info->lidars[i].port, (unsigned char *)buf, sizeof(buf));
 						break;
 					}
 				}
-				// if (id == -1 && info->nnode == 1) id = 0;
-
 				if (id == -1)
 				{
-					//printf("packet from unknown address %s\n", inet_ntoa(addr.sin_addr));
+					// continue;
+					// printf("packet from unknown address %s\n", inet_ntoa(addr.sin_addr));
 				}
 				else if (buf[0] == 0x4c && buf[1] == 0x48 && buf[2] == ~0x41 && buf[3] == ~0x4b)
 				{
@@ -373,15 +295,14 @@ void *UdpThreadProc(void *p)
 						else
 							delay = clock + 36000000 - ka->world_clock;
 					}
-					// printf("lidar[%d] delay %d\n", id, delay);
 				}
 				else
 				{
-					// printf("udp %02x%02x\n", buf[0], buf[1]);
 					RawData *fans[MAX_FANS];
 					int nfan = ParserRun(info->lidars[id], nr, (uint8_t *)buf, &(fans[0]));
+					// test for span  without  0/180
 					// for (int i=0; i<nfan; i++)
-					// 	 printf("angle:%d  span:%d time:%d %d\n", fans[i]->angle, fans[i]->span,fans[i]->ts[0],fans[i]->ts[1]);
+					// 	printf("angle:%d  span:%d time:%d %d\n", fans[i]->angle, fans[i]->span,fans[i]->ts[0],fans[i]->ts[1]);
 					if (nfan > 0)
 						PublishData(info->lidars[id].hPublish, nfan, fans);
 				}
@@ -400,12 +321,13 @@ void *UdpThreadProc(void *p)
 				// acknowlege device
 				// int rt = send_cmd_udp(fd_udp, info->lidar_ip, info->lidar_port, 0x4753, rand(), 0, NULL);
 				send_cmd_udp_f(info->fd_udp, info->lidars[i].ip, info->lidars[i].port,
-							   0x4b41, rand(), sizeof(alive), &alive, info->isSaveLog, info->logPath);
+							   0x4b41, rand(), sizeof(alive), &alive, "");
 			}
 
 			tto = tv.tv_sec + 3;
 		}
 	}
+	
 	return NULL;
 }
 
@@ -431,7 +353,7 @@ int AddLidar(HReader hr, const char *lidar_ip, unsigned short lidar_port, HParse
 }
 
 HReader StartUDPReader(const char *type, unsigned short listen_port, bool is_group_listener, const char *group_ip,
-					   int lidar_count, const LidarInfo *lidars, bool isSaveLog, const char *logPath)
+					   int lidar_count, const LidarInfo *lidars)
 {
 	UDPInfo *info = new UDPInfo;
 	memset(info, 0, sizeof(UDPInfo));
@@ -441,8 +363,6 @@ HReader StartUDPReader(const char *type, unsigned short listen_port, bool is_gro
 		AddLidar(info, lidars[i].lidar_ip, lidars[i].lidar_port, lidars[i].parser, lidars[i].pub);
 	}
 
-	info->isSaveLog = isSaveLog;
-	strcpy(info->logPath, logPath);
 	strcpy(info->type, type);
 	info->listen_port = listen_port;
 	info->is_group_listener = is_group_listener;
@@ -479,9 +399,8 @@ HReader StartUDPReader(const char *type, unsigned short listen_port, bool is_gro
 
 		printf("Adding to multicast group %s %s\n", group_ip, rt < 0 ? "fail!" : "ok");
 	}
-
 	pthread_create(&info->thr, NULL, UdpThreadProc, info);
-
+	// printf(" %d %s\n",__LINE__,__FUNCTION__);
 	return info;
 }
 
@@ -495,7 +414,7 @@ bool SendUdpCmd(HReader hr, int lidar_id, int len, char *cmd)
 		return false;
 
 	return send_cmd_udp(info->fd_udp, info->lidars[lidar_id].ip, info->lidars[lidar_id].port,
-						0x0043, rand(), len, cmd, info->isSaveLog, info->logPath);
+						0x0043, rand(), len, cmd, "");
 }
 bool SendUdpCmd2(HReader hr, char *ip, int len, char *cmd)
 {
@@ -508,16 +427,16 @@ bool SendUdpCmd2(HReader hr, char *ip, int len, char *cmd)
 		if (strcmp(ip, info->lidars[i].ip) == 0)
 		{
 			return send_cmd_udp(info->fd_udp, info->lidars[i].ip, info->lidars[i].port,
-								0x0053, rand(), len, cmd, info->isSaveLog, info->logPath);
+								0x0053, rand(), len, cmd, "");
 		}
 	}
 	return false;
 }
 
-bool udp_talk_GS_PACK(int fd_udp, const char *ip, int port, int n, const char *cmd, bool isSaveLog, const char *logPath, void *result)
+bool udp_talk_GS_PACK(int fd_udp, const char *ip, int port, int n, const char *cmd, void *result, const char *logPath)
 {
 	unsigned short sn = rand();
-	send_cmd_udp(fd_udp, ip, port, 0x4753, sn, n, cmd, isSaveLog, logPath);
+	send_cmd_udp(fd_udp, ip, port, 0x4753, sn, n, cmd, logPath);
 
 	int nr = 0;
 	for (int i = 0; i < 1000; i++)

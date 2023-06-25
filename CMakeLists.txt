@@ -31,7 +31,7 @@ find_package(std_srvs REQUIRED)
 
 include_directories(${sensor_msgs_INCLUDE_DIRS})
 
-add_executable(bluesea_node src/bluesea_node.cpp src/parser.cpp src/uart_reader.cpp src/udp_reader.cpp src/tcp_reader.cpp src/uart.c)
+add_executable(bluesea_node src/bluesea_node.cpp src/parser.cpp src/uart_reader.cpp src/udp_reader.cpp src/tcp_reader.cpp src/data_process.cpp src/algorithmAPI.cpp src/uart.c)
 ament_target_dependencies(bluesea_node
   "rclcpp"
   "sensor_msgs"

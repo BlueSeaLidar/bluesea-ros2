@@ -26,23 +26,12 @@
 #define ROS_ERROR printf
 #define ROS_INFO printf
 
-struct UartInfo
-{
-	char type[8]; // uart or vpc
-	int fd_uart;
-	char port[128];
-	int baudrate;
-	int *rate_list;
-
-	HParser hParser;
-	HPublish hPublish;
-	pthread_t thr;
-	bool isSaveLog;
-	char logPath[256];
-};
-
 extern "C" int change_baud(int fd, int baud);
 
+
+
+UART_TALK uart_pack;
+VPC_TALK  vpc_pack;
 #if 0
 // send pacecat command to lidar serial port
 int send_cmd_uart(int fd_uart, unsigned short cmd_id, int len, const void* cmd_body)
@@ -158,18 +147,11 @@ int open_serial_port(const char *port, int baudrate)
 	return fd;
 }
 
-bool uart_talk(void *hnd,
-			   int n, const char *cmd,
-			   int nhdr, const char *hdr_str,
-			   int nfetch, char *fetch)
+bool uart_talk(int fd, int n, const char *cmd, int nhdr, const char *hdr_str, int nfetch, char *fetch, const char *logpath)
 {
-	UartInfo *info = (UartInfo *)hnd;
-	int fd = info->fd_uart;
-
 	printf("send command : \'%s\' \n", cmd);
 	write(fd, cmd, n);
-	// printf("test:%d  %s\n",info->isSaveLog,info->logPath);
-	saveLog(info->isSaveLog, info->logPath, 0,"UART",0,(unsigned char *)cmd, n);
+	saveLog(logpath, 0, "UART", 0, (unsigned char *)cmd, n);
 	char buf[4096 * 2];
 
 	int nr = read(fd, buf, sizeof(buf));
@@ -190,7 +172,7 @@ bool uart_talk(void *hnd,
 		{
 			if (nfetch > 0)
 			{
-				if (strcmp(cmd, "LXVERH") == 0 || strcmp(cmd, "LUUIDH") == 0||strcmp(cmd, "LTYPEH") == 0)
+				if (strcmp(cmd, "LXVERH") == 0 || strcmp(cmd, "LUUIDH") == 0 || strcmp(cmd, "LTYPEH") == 0)
 				{
 					memcpy(fetch, buf + i + nhdr, nfetch);
 					fetch[nfetch] = 0;
@@ -207,12 +189,12 @@ bool uart_talk(void *hnd,
 		{
 			if (nfetch > 0)
 			{
-				memcpy(fetch, buf + i + n+1, 2);
+				memcpy(fetch, buf + i + n + 1, 2);
 				fetch[2] = 0;
 			}
 			return true;
 		}
-		else if (memcmp(buf + i,"unsupport", 9) == 0)
+		else if (memcmp(buf + i, "unsupport", 9) == 0)
 		{
 			if (nfetch > 0)
 			{
@@ -222,21 +204,19 @@ bool uart_talk(void *hnd,
 			return true;
 		}
 	}
-	saveLog(info->isSaveLog, info->logPath, 1, "UART",0,(unsigned char *)buf, nr);
+	saveLog(logpath, 1, "UART", 0, (unsigned char *)buf, nr);
 	printf("read %d bytes, not found %s\n", nr, hdr_str);
 	return false;
 }
-bool vpc_talk(void *hnd, int len, const char *cmd, int, const char *, int nfetch, char *fetch)
+bool vpc_talk(int hCom, int mode, int len, const char *cmd, int nfetch, void *result, const char *logpath)
 {
-	UartInfo *info = (UartInfo *)hnd;
-	int fd = info->fd_uart;
-
-	unsigned char buffer[2048];
+	short sn = rand();
+	printf("USB send command : %s\n", cmd);
+	char buffer[2048];
 	CmdHeader *hdr = (CmdHeader *)buffer;
 	hdr->sign = 0x484c;
-	hdr->cmd = 0x0043;
-	hdr->sn = rand();
-
+	hdr->cmd = mode;
+	hdr->sn = sn;
 	len = ((len + 3) >> 2) * 4;
 
 	hdr->len = len;
@@ -246,34 +226,36 @@ bool vpc_talk(void *hnd, int len, const char *cmd, int, const char *, int nfetch
 	int n = sizeof(CmdHeader);
 	unsigned int *pcrc = (unsigned int *)(buffer + sizeof(CmdHeader) + len);
 	pcrc[0] = stm32crc((unsigned int *)(buffer + 0), len / 4 + 2);
+
 	int len2 = len + sizeof(CmdHeader) + 4;
-	write(fd, buffer, len2);
-	saveLog(info->isSaveLog, info->logPath, 0, "UART",0,(unsigned char *)cmd, n);
-	unsigned int nr = 0;
+	int nr = 0;
+	write(hCom, buffer, len2);
+	saveLog(logpath, 0, "VPC", 0, (unsigned char *)cmd, n);
 	char buf[2048];
 	int index = 10;
 	// 4C 48 BC FF   xx xx xx xx  result
-	//读取之后的10*2048个长度，如果不存在即判定失败
+	// 读取之后的10*2048个长度，如果不存在即判定失败
 	while (index--)
 	{
-		unsigned int nr = read(fd, buf, sizeof(buf));
-		// printf("%d %d \n",sizeof(buf),nr);
+		int nr = read(hCom, buf, sizeof(buf));
+		//printf("%d %d \n",sizeof(buf),nr);
 		while (nr < sizeof(buf))
 		{
 			int n = 0;
-			n = read(fd, buf + nr, sizeof(buf) - nr);
+			n = read(hCom, buf + nr, sizeof(buf) - nr);
 			if (n > 0)
 				nr += n;
 		}
 		for (int i = 0; i < (int)sizeof(buf) - nfetch; i++)
 		{
-			if (buf[i] == 0x4C && buf[i + 1] == 0x48 && buf[i + 2] == (signed char)0xBC && buf[i + 3] == (signed char)0xFF)
+			if (mode == 0x0043)
 			{
-				if (nfetch > 0)
+				char*fetch = (char*)result;
+				if (buf[i] == 0x4C && buf[i + 1] == 0x48 && buf[i + 2] == (signed char)0xBC && buf[i + 3] == (signed char)0xFF)
 				{
 					for (int j = 0; j < nfetch; j++)
 					{
-						if (buf[i + j + 8] >= 33 /*&& buf[i + j + 8] <= 127*/)
+						if ((buf[i + j + 8] >= 33 && buf[i + j + 8] <= 127))
 						{
 							fetch[j] = buf[i + j + 8];
 						}
@@ -283,16 +265,30 @@ bool vpc_talk(void *hnd, int len, const char *cmd, int, const char *, int nfetch
 						}
 					}
 					fetch[nfetch] = 0;
+					saveLog(logpath, 1, "VPC", 0, (unsigned char *)fetch, nfetch);
+					return true;
 				}
-				return true;
+			}
+			else if (mode == 0x0053)
+			{
+				if ((buf[i + 2] == (signed char)0xAC && buf[i + 3] == (signed char)0xB8) || (buf[i + 2] == (signed char)0xAC && buf[i + 3] == (signed char)0xff))
+                {
+					
+                    //printf("%02x  %02x\n", buf[i + 2], buf[i + 3]);
+                    //随机码判定
+                    unsigned int packSN = ((unsigned char)buf[i + 5] << 8) | (unsigned char)buf[i + 4];
+					if (packSN != sn)
+                        continue;
+                    memcpy(result, buf + i + 8, nfetch);
+					saveLog(logpath, 1, "VPC", 0, (unsigned char *)result, nfetch);
+                    return true;
+                }
 			}
 		}
 	}
-	saveLog(info->isSaveLog, info->logPath, 1, "UART",0,(unsigned char *)buf, nr);
 	printf("read %d bytes, not found %s\n", nr, cmd);
 	return false;
 }
-
 int UartReader(UartInfo *info)
 {
 	int fd_uart = info->fd_uart;
@@ -324,10 +320,10 @@ int UartReader(UartInfo *info)
 				printf("read port error %d\n", nr);
 				break;
 			}
-			saveLog(info->isSaveLog, info->logPath, 1, "UART",0,(unsigned char *)buf, nr);
+			//saveLog(info->logPath, 1, "UART", 0, (unsigned char *)buf, nr);
 			int nfan = ParserRunStream(info->hParser, nr, buf, &(fans[0]));
-			// for (int i=0; i<nfan; i++)
-			// 		printf("angle:%d distance:%d \n", fans[i]->angle, fans[i]->points[0].distance);
+			
+			
 			if (nfan > 0)
 			{
 				PublishData(info->hPublish, nfan, fans);
@@ -406,13 +402,15 @@ int detect_baudrate(const char *port, int *possible_rates)
 void *UartThreadProc(void *p)
 {
 	UartInfo *info = (UartInfo *)p;
-	while (1)
+	uart_pack = uart_talk;
+	vpc_pack = vpc_talk;
+	//while (1)
 	{
 		if (access(info->port, R_OK))
 		{
 			printf("port %s not ready\n", info->port);
-			sleep(10);
-			continue;
+			//sleep(10);
+			return NULL;
 		}
 
 		// int fd = open_serial_port(info->port, info->baudrate);
@@ -424,8 +422,8 @@ void *UartThreadProc(void *p)
 
 		if (baudrate <= 0)
 		{
-			sleep(10);
-			continue;
+			//sleep(10);
+			return NULL;
 		}
 
 		int fd = open_serial_port(info->port, baudrate);
@@ -433,33 +431,26 @@ void *UartThreadProc(void *p)
 		{
 			info->fd_uart = fd;
 			if (strcmp(info->type, "uart") == 0)
-				ParserScript(info->hParser, uart_talk, NULL, info->type, info);
+				setup_lidar_uart(info->hParser, (void*)uart_pack, NULL, info->type, info->fd_uart);
 			if (strcmp(info->type, "vpc") == 0)
-				ParserScript(info->hParser, vpc_talk, NULL, info->type, info);
+				setup_lidar_vpc(info->hParser, (void*)vpc_pack, NULL,info->type, info->fd_uart);
 
 			UartReader(info);
-		}
-		else
-		{
-			sleep(10);
 		}
 	}
 
 	return NULL;
 }
 
-void *StartUartReader(const char *type, const char *port, int baudrate, int *rate_list, HParser hParser, HPublish hPublish, bool isSaveLog, const char *logPath)
+void *StartUartReader(const char *type, const char *port, int baudrate, int *rate_list, HParser hParser, HPublish hPublish)
 {
 	UartInfo *info = new UartInfo;
-
 	strcpy(info->type, type);
 	strcpy(info->port, port);
 	info->baudrate = baudrate;
 	info->rate_list = rate_list;
 	info->hParser = hParser;
 	info->hPublish = hPublish;
-	info->isSaveLog = isSaveLog;
-	strcpy(info->logPath, logPath);
 	pthread_create(&info->thr, NULL, UartThreadProc, info);
 
 	return info;
@@ -491,7 +482,7 @@ bool SendVpcCmd(HReader hr, int len, char *cmd)
 
 		memcpy(buffer + sizeof(CmdHeader), cmd, len);
 
-		//int n = sizeof(CmdHeader);
+		// int n = sizeof(CmdHeader);
 		unsigned int *pcrc = (unsigned int *)(buffer + sizeof(CmdHeader) + len);
 		pcrc[0] = stm32crc((unsigned int *)(buffer + 0), len / 4 + 2);
 		int len2 = len + sizeof(CmdHeader) + 4;
@@ -501,9 +492,9 @@ bool SendVpcCmd(HReader hr, int len, char *cmd)
 }
 void StopUartReader(HReader hr)
 {
-	UartInfo* info = (UartInfo*)hr;
-	//info->should_exit = true;
-	//sleep(1);
+	UartInfo *info = (UartInfo *)hr;
+	// info->should_exit = true;
+	// sleep(1);
 	pthread_join(info->thr, NULL);
 	delete info;
 }
