@@ -17,7 +17,7 @@ bluesea_node:
     hard_resample: false
     soft_resample: false
     with_checksum: true
-    inverted: false
+    inverted: true
     reversed: false
     min_dist: 0.1
     max_dist: 50.0
