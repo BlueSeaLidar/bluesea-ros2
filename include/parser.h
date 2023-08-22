@@ -242,7 +242,8 @@ struct Parser
 	int raw_mode;
 	uint32_t dev_id;
 	uint32_t flags;
-	FanSegment_AA *fan_segs;
+	FanSegment_AA *fan_segs_aa;
+	FanSegment_C7 *fan_segs_c7;
 	int error_circle;
 	float error_scale;
 	bool is_from_zero;

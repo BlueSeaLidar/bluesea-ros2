@@ -401,20 +401,20 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 
 	// printf("fan %d %d\n", fan_seg->hdr.beg_ang, fan_seg->hdr.ofset);
 
-	if (parser->fan_segs != NULL)
+	if (parser->fan_segs_c7 != NULL)
 	{
-		FanSegment_C7 *seg =(FanSegment_C7*)parser->fan_segs;
+		FanSegment_C7 *seg =parser->fan_segs_c7;
 
 		if (seg->hdr.timestamp != fan_seg->hdr.timestamp)
 		{
 			printf("drop old fan segments\n");
 			while (seg)
 			{
-				parser->fan_segs = (FanSegment_AA*)seg->next;
+				parser->fan_segs_c7 = seg->next;
 				delete seg;
-				seg =(FanSegment_C7*)parser->fan_segs;
+				seg =parser->fan_segs_c7;
 			}
-			parser->fan_segs =(FanSegment_AA*)fan_seg;
+			parser->fan_segs_c7 =fan_seg;
 		}
 		else
 		{
@@ -437,20 +437,20 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 		}
 	}
 
-	if (parser->fan_segs == NULL && fan_seg != NULL)
+	if (parser->fan_segs_c7 == NULL && fan_seg != NULL)
 	{
-		parser->fan_segs = (FanSegment_AA*)fan_seg;
+		parser->fan_segs_c7 = fan_seg;
 	}
 
 	// if (parser->fan_segs == NULL) { return NULL; }
 
-	unsigned int N = GetFanPointCount(parser->fan_segs);
+	unsigned int N = GetFanPointCount(parser->fan_segs_c7);
 
-	if (N >= parser->fan_segs->hdr.whole_fan)
+	if (N >= parser->fan_segs_c7->hdr.whole_fan)
 	{
 		RawData *dat = NULL;
 
-		if (N == parser->fan_segs->hdr.whole_fan)
+		if (N == parser->fan_segs_c7->hdr.whole_fan)
 		{
 			if (N > sizeof(dat->points) / sizeof(dat->points[0]))
 			{
@@ -458,17 +458,17 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 			}
 			else
 			{
-				dat = PackFanData(parser->fan_segs);
+				dat = PackFanData(parser->fan_segs_c7);
 			}
 		}
 
 		// remove segments
-		FanSegment_AA *seg = parser->fan_segs;
+		FanSegment_C7 *seg = parser->fan_segs_c7;
 		while (seg)
 		{
-			parser->fan_segs = seg->next;
+			parser->fan_segs_c7 = seg->next;
 			delete seg;
-			seg = parser->fan_segs;
+			seg = parser->fan_segs_c7;
 		}
 
 		if (dat)
@@ -505,20 +505,20 @@ static RawData *GetData0xAA(Parser *parser, const RawDataHdrAA &hdr, uint8_t *pd
 
 	// printf("fan %d %d\n", fan_seg->hdr.beg_ang, fan_seg->hdr.ofset);
 
-	if (parser->fan_segs != NULL)
+	if (parser->fan_segs_aa != NULL)
 	{
-		FanSegment_AA *seg = parser->fan_segs;
+		FanSegment_AA *seg = parser->fan_segs_aa;
 
 		if ((seg->hdr.second != fan_seg->hdr.second)||(seg->hdr.nano_sec != fan_seg->hdr.nano_sec))
 		{
 			printf("drop old fan segments\n");
 			while (seg)
 			{
-				parser->fan_segs = seg->next;
+				parser->fan_segs_aa = seg->next;
 				delete seg;
-				seg = parser->fan_segs;
+				seg = parser->fan_segs_aa;
 			}
-			parser->fan_segs = fan_seg;
+			parser->fan_segs_aa = fan_seg;
 		}
 		else
 		{
@@ -541,20 +541,20 @@ static RawData *GetData0xAA(Parser *parser, const RawDataHdrAA &hdr, uint8_t *pd
 		}
 	}
 
-	if (parser->fan_segs == NULL && fan_seg != NULL)
+	if (parser->fan_segs_aa == NULL && fan_seg != NULL)
 	{
-		parser->fan_segs = fan_seg;
+		parser->fan_segs_aa = fan_seg;
 	}
 
 	// if (parser->fan_segs == NULL) { return NULL; }
 
-	unsigned int N = GetFanPointCount(parser->fan_segs);
+	unsigned int N = GetFanPointCount(parser->fan_segs_aa);
 
-	if (N >= parser->fan_segs->hdr.whole_fan)
+	if (N >= parser->fan_segs_aa->hdr.whole_fan)
 	{
 		RawData *dat = NULL;
 
-		if (N == parser->fan_segs->hdr.whole_fan)
+		if (N == parser->fan_segs_aa->hdr.whole_fan)
 		{
 			if (N > sizeof(dat->points) / sizeof(dat->points[0]))
 			{
@@ -562,17 +562,17 @@ static RawData *GetData0xAA(Parser *parser, const RawDataHdrAA &hdr, uint8_t *pd
 			}
 			else
 			{
-				dat = PackFanData(parser->fan_segs);
+				dat = PackFanData(parser->fan_segs_aa);
 			}
 		}
 
 		// remove segments
-		FanSegment_AA *seg = parser->fan_segs;
+		FanSegment_AA *seg = parser->fan_segs_aa;
 		while (seg)
 		{
-			parser->fan_segs = seg->next;
+			parser->fan_segs_aa = seg->next;
 			delete seg;
-			seg = parser->fan_segs;
+			seg = parser->fan_segs_aa;
 		}
 
 		if (dat)
@@ -965,7 +965,8 @@ HParser ParserOpen(int raw_bytes, bool with_chksum, uint32_t dev_id,
 	parser->rest_len = 0;
 	parser->raw_mode = raw_bytes;
 	parser->with_chk = with_chksum;
-	parser->fan_segs = NULL;
+	parser->fan_segs_c7 = NULL;
+	parser->fan_segs_aa = NULL;
 	parser->dev_id = dev_id;
 	parser->error_circle = error_circle;
 	parser->error_scale = error_scale;
@@ -1226,7 +1227,6 @@ int ParserRun(LidarNode hP, int len, unsigned char *buf, RawData *fans[])
 	else if (type == 0xAA)
 	{
 
-		
 		RawDataHdrAA hdr;
 		memcpy(&hdr, buf, HDRAA_SIZE);
 
