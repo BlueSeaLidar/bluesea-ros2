@@ -19,7 +19,7 @@
 #include "../include/algorithmAPI.h"
 #include <cmath>
 
-#define ROS2Verision "1.5.0"
+#define ROS2Verision "1.5.1"
 
 HReader g_reader = NULL;
 std::string g_type = "uart";

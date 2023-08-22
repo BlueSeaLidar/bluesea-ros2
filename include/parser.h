@@ -28,6 +28,7 @@
 #define HDR3_SIZE 16
 #define HDR7_SIZE 28
 #define HDR99_SIZE 32
+#define HDRAA_SIZE 48
 #define BUF_SIZE 8 * 1024
 
 #define getbit(x, y) ((x) >> (y)&1) // 获取X的Y位置数据
@@ -61,13 +62,10 @@ struct RawData
 	unsigned short last;
 	unsigned short fend;
 	// short ros_angle;	// 0.1 degree
-	struct DataPoint points[MAX_POINTS];
+	DataPoint points[MAX_POINTS];
 	uint32_t ts[2];
 	uint8_t counterclockwise;
-
-	// unsigned short distance[1000];
-	// unsigned char confidence[1000];
-	// float angles[1000];
+	uint32_t flags;	//消息类型
 };
 struct EEpromV101
 {
@@ -165,7 +163,19 @@ struct RawDataHdr7
 	uint32_t timestamp;
 	uint32_t dev_id;
 };
-
+struct RawDataHdrAA {
+    uint16_t code; // 0xFAAA
+    uint16_t N;
+    uint16_t whole_fan;
+    uint16_t ofset;
+    uint32_t beg_ang;
+    uint32_t end_ang;
+    uint32_t flags;
+    uint32_t second;
+    uint32_t nano_sec;
+    uint32_t dev_id;
+    uint32_t reserved[4];
+};
 struct RawDataHdr99
 {
 	uint16_t code;
@@ -186,7 +196,7 @@ typedef struct
 	uint32_t dev_id;
 } PacketUart;
 
-struct FanSegment
+struct FanSegment_C7
 {
 	RawDataHdr7 hdr;
 
@@ -194,7 +204,17 @@ struct FanSegment
 	uint16_t angle[MAX_POINTS];
 	uint8_t energy[MAX_POINTS];
 
-	struct FanSegment *next;
+	struct FanSegment_C7 *next;
+};
+struct FanSegment_AA
+{
+    RawDataHdrAA hdr;			//CN：HdrAA结构体		EN：Hdr7structure
+
+    uint16_t dist[MAX_POINTS];	//CN:距离				EN:distance
+    uint16_t angle[MAX_POINTS]; //CN:角度				EN:angle
+    uint8_t energy[MAX_POINTS]; //CN:能量强度			EN:energy intensity
+
+    struct FanSegment_AA* next;	// CN:下个扇区指针		EN:next sector pointer
 };
 struct CommandList
 {
@@ -222,7 +242,7 @@ struct Parser
 	int raw_mode;
 	uint32_t dev_id;
 	uint32_t flags;
-	FanSegment *fan_segs;
+	FanSegment_AA *fan_segs;
 	int error_circle;
 	float error_scale;
 	bool is_from_zero;

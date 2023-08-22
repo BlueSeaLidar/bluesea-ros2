@@ -115,7 +115,7 @@ bool filter(const sensor_msgs::msg::LaserScan &input_scan, sensor_msgs::msg::Las
   {
     if (!valid_ranges[i])
     {
-      output_scan.ranges[i] = std::numeric_limits<float>::quiet_NaN();
+      output_scan.ranges[i] = std::numeric_limits<float>::infinity();
       errnum++;
     }
     ++i;
