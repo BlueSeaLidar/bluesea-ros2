@@ -25,7 +25,7 @@ bluesea_node:
     error_scale: 0.9
   #CONNECT#
     type: "udp"
-    lidar_ip: "192.168.158.98"
+    lidar_ip: "192.168.0.98"
     lidar_port: 6543
     local_port: 6668
     group_ip: "224.1.2.3"

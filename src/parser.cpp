@@ -758,10 +758,8 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 	int max_fan = *nfan;
 	int idx = 0;
 	*nfan = 0;
-
 	int unk = 0;
 	unsigned char unknown[1024];
-	printf("%s %d\n",__FUNCTION__,__LINE__);
 	while (idx < len - 128 && *nfan < max_fan)
 	{
 		unsigned char type = is_data(buf + idx);
@@ -987,7 +985,6 @@ int ParserClose(HParser hP)
 
 int ParserRunStream(HParser hP, int len, unsigned char *bytes, RawData *fans[])
 {
-	printf("%s %d\n",__FUNCTION__,__LINE__);
 	Parser *parser = (Parser *)hP;
 
 	int nfan = MAX_FANS;
