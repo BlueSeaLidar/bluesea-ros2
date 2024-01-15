@@ -954,9 +954,9 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 	return idx;
 }
 
-HParser ParserOpen(int raw_bytes, bool with_chksum, uint32_t dev_id,
+HParser ParserOpen(int raw_bytes, bool with_chksum, int dev_id,
 				   int error_circle, double error_scale, bool from_zero,
-				   char *logpath, CommandList cmd, char *ip, int port)
+				   CommandList cmd, char *ip, int port)
 {
 	Parser *parser = new Parser;
 
@@ -970,7 +970,6 @@ HParser ParserOpen(int raw_bytes, bool with_chksum, uint32_t dev_id,
 	parser->error_scale = error_scale;
 	parser->cmd = cmd;
 	parser->is_from_zero = from_zero;
-	strcpy(parser->logPath, logpath);
 	strcpy(parser->ip, ip);
 	parser->port = port;
 	return parser;
@@ -1298,387 +1297,7 @@ int strip(const char *s, char *buf)
 	buf[len] = 0;
 	return len;
 }
-bool setup_lidar_udp(HParser hP, void *func1, void *func2, const char *type, int handle)
-{
-	C_PACK func1_pack = (C_PACK)func1;
-	S_PACK func2_pack = (S_PACK)func2;
-	Parser *parser = (Parser *)hP;
-	unsigned int index = 5;
-	int cmdLength;
-	char buf[32];
-	char result[3] = {0};
-	result[2] = '\0';
 
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.ats);
-		if (cmdLength <= 0)
-			break;
-		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.ats, result, parser->logPath))
-		{
-			printf("set ats %s\n", result);
-			break;
-		}
-	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.uuid);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.uuid, 11, "PRODUCT SN:", 16, buf, parser->logPath))
-		{
-			strip(buf, g_uuid);
-			printf("get product SN : \'%s\'\n", g_uuid);
-			break;
-		}
-		else if (func1_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.uuid, 10, "VENDOR ID:", 16, buf, parser->logPath))
-		{
-			strip(buf, g_uuid);
-			printf("get product SN : \'%s\'\n", g_uuid);
-			break;
-		}
-	}
-	// printf(" %d %s %s\n",__LINE__,__FUNCTION__,parser->cmd.model);
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.model);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.model, 8, "TYPE ID:", 16, buf, parser->logPath))
-		{
-			strip(buf, g_model);
-			printf("get product model : \'%s\'\n", g_model);
-			break;
-		}
-	}
-
-	// enable/disable shadow filter
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.fitter);
-		if (cmdLength <= 0)
-			break;
-
-		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.fitter, result, parser->logPath))
-		{
-			printf("set LiDAR shadow filter %s %s\n", parser->cmd.fitter, result);
-			break;
-		}
-	}
-	// enable/disable smooth
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.smooth);
-		if (cmdLength <= 0)
-			break;
-
-		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.smooth, result, parser->logPath))
-		{
-			printf("set LiDAR smooth  %s %s\n", parser->cmd.smooth, result);
-			break;
-		}
-	}
-	// setup rpm
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.rpm);
-		if (cmdLength <= 0)
-			break;
-
-		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.rpm, result, parser->logPath))
-		{
-			printf("%s %s\n", parser->cmd.rpm, result);
-			break;
-		}
-	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.res);
-		if (cmdLength <= 0)
-			break;
-
-		if (func1_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.res, 2, "OK", 0, NULL, parser->logPath))
-		{
-			printf("%s OK\n", parser->cmd.res);
-			break;
-		}
-	}
-
-	// enable/disable alaram message uploading
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.alarm);
-		if (cmdLength <= 0)
-			break;
-		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.alarm, result, parser->logPath))
-		{
-			printf("set alarm_msg %s\n", result);
-			break;
-		}
-	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.direction);
-		if (cmdLength <= 0)
-			break;
-		if (func2_pack(handle, parser->ip, parser->port, cmdLength, parser->cmd.direction, result, parser->logPath))
-		{
-			printf("set direction %s\n", result);
-			break;
-		}
-	}
-
-	return true;
-}
-
-bool setup_lidar_uart(HParser hP, void *func1, void *func2, const char *type, int handle)
-{
-	UART_TALK func1_pack = (UART_TALK)func1;
-	Parser *parser = (Parser *)hP;
-	unsigned int index = 5;
-	int cmdLength;
-	char buf[32];
-	char result[3] = {0};
-	result[2] = '\0';
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.uuid);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, cmdLength, parser->cmd.uuid, 11, "PRODUCT SN:", 16, buf, parser->logPath))
-		{
-			strip(buf, g_uuid);
-			printf("get product SN : \'%s\'\n", g_uuid);
-			break;
-		}
-		else if (func1_pack(handle, cmdLength, parser->cmd.uuid, 10, "VENDOR ID:", 16, buf, parser->logPath))
-		{
-			strip(buf, g_uuid);
-			printf("get product SN : \'%s\'\n", g_uuid);
-			break;
-		}
-	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.model);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, cmdLength, parser->cmd.model, 8, "TYPE ID:", 16, buf, parser->logPath))
-		{
-			strip(buf, g_model);
-			printf("get product model : \'%s\'\n", g_model);
-			break;
-		}
-	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.unit_mm);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, cmdLength, parser->cmd.unit_mm, 10, "SET LiDAR ", 12, buf, parser->logPath))
-		{
-			printf("set LiDAR unit %s \n", buf);
-			break;
-		}
-	}
-
-	// enable/disable output intensity
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.confidence);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, cmdLength, parser->cmd.confidence, 6, "LiDAR ", 12, buf, parser->logPath))
-		{
-			printf("set LiDAR confidence %s \n", buf);
-			break;
-		}
-	}
-	// enable/disable shadow filter
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.fitter);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, cmdLength, parser->cmd.fitter, 6, "LiDAR ", 12, buf, parser->logPath))
-		{
-			printf("set LiDAR shadow filter %s \n", buf);
-			break;
-		}
-	}
-	// enable/disable smooth
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.smooth);
-		if (cmdLength <= 0)
-			break;
-
-		if (func1_pack(handle, cmdLength, parser->cmd.smooth, 6, "LiDAR ", 12, buf, parser->logPath))
-		{
-			printf("set LiDAR smooth to %s\n", buf);
-			break;
-		}
-	}
-	// setup rpm
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.rpm);
-		if (cmdLength <= 0)
-			break;
-
-		if (func1_pack(handle, cmdLength, parser->cmd.rpm, 3, "RPM", 12, buf, parser->logPath))
-		{
-			printf("%s %s\n", parser->cmd.rpm, buf);
-			break;
-		}
-	}
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.res);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, cmdLength, parser->cmd.res, 15, "set resolution ", 12, buf, parser->logPath))
-		{
-			printf("set resolution %s\n", buf);
-			break;
-		}
-	}
-	return true;
-}
-
-bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int handle)
-{
-	VPC_TALK func1_pack = (VPC_TALK)func1;
-	// S_PACK func2_pack = (S_PACK)func2;
-	Parser *parser = (Parser *)hP;
-	unsigned int index = 5;
-	int cmdLength;
-	char buf[32];
-	char result[3] = {0};
-	result[2] = '\0';
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.ats);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.ats, 2, result, parser->logPath))
-		{
-			printf("set ats %s\n", result);
-			break;
-		}
-	}
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.uuid);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, 0x0043, cmdLength, parser->cmd.uuid, 36, buf, parser->logPath))
-		{
-			printf("get product SN : \'%s\'\n", buf);
-			break;
-		}
-	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.model);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, 0x0043, cmdLength, parser->cmd.model, 36, buf, parser->logPath))
-		{
-			strip(buf, g_model);
-			printf("get product model : \'%s\'\n", g_model);
-			break;
-		}
-	}
-
-	// enable/disable shadow filter
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.fitter);
-		if (cmdLength <= 0)
-			break;
-
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.fitter, 16, result, parser->logPath))
-		{
-			printf("set LiDAR shadow filter %s %s\n", parser->cmd.fitter, result);
-			break;
-		}
-	}
-	// enable/disable smooth
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.smooth);
-		if (cmdLength <= 0)
-			break;
-
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.smooth, 16, result, parser->logPath))
-		{
-			printf("set LiDAR smooth  %s %s\n", parser->cmd.smooth, result);
-			break;
-		}
-	}
-	// setup rpm
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.rpm);
-		if (cmdLength <= 0)
-			break;
-
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.rpm, 16, result, parser->logPath))
-		{
-			printf("%s %s\n", parser->cmd.rpm, result);
-			break;
-		}
-	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.res);
-		if (cmdLength <= 0)
-			break;
-
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.res, 2, result, parser->logPath))
-		{
-			printf("%s %s\n", parser->cmd.res, result);
-			break;
-		}
-	}
-
-	// enable/disable alaram message uploading
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.alarm);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.alarm, 2, result, parser->logPath))
-		{
-			printf("set alarm_msg %s\n", result);
-			break;
-		}
-	}
-
-	for (unsigned int i = 0; i < index; i++)
-	{
-		cmdLength = strlen(parser->cmd.direction);
-		if (cmdLength <= 0)
-			break;
-		if (func1_pack(handle, 0x0053, cmdLength, parser->cmd.direction, 2, result, parser->logPath))
-		{
-			printf("set direction %s\n", result);
-			break;
-		}
-	}
-	return true;
-}
 
 void saveLog(const char *logPath, int type, const char *ip, const int port, const unsigned char *buf, unsigned int len)
 {
@@ -1726,4 +1345,98 @@ int mkpathAll(std::string s, mode_t mode = 0755)
 		}
 	}
 	return mdret;
+}
+std::string stringfilter(char *str, int num)
+{
+    int index = 0;
+    for(int i=0;i<num;i++)
+    {
+       if((str[i]>=45&&str[i]<=58)||(str[i]>=65&&str[i]<=90)||(str[i]>=97&&str[i]<=122)||str[i]==32||str[i]=='_')
+       {
+          index++;
+       }
+       else
+       {
+           std::string arr = str;
+           arr=arr.substr(0,index);
+           return   arr;
+       }
+    }
+    return "";
+}
+
+int find(std::vector<RawData>a, int n, int x)
+{
+    int i;
+    int min = abs(a.at(0).angle - x);
+    int r = 0;
+
+    for (i = 0; i < n; ++i)
+    {
+        if (abs(a.at(i).angle - x) < min)
+        {
+            min = abs(a.at(i).angle - x);
+            r = i;
+        }
+    }
+
+    return a[r].angle;
+}
+int autoGetFirstAngle(RawData raw, bool from_zero, std::vector<RawData> &raws,std::string &result)
+{
+    int angles = 0;
+    int size = raws.size();
+    //printf("angle %d  size:%d\n", raw.angle,size);
+    if(size>=1)
+    {
+        RawData tmp = raws.at(size-1);
+        RawData tmp2 = raws.at(0);
+        if(raw.angle==tmp2.angle)
+        {
+            for (int i=0;i<size;i++)
+            {
+                tmp = raws.at(i);
+                angles += tmp.span;
+            }
+            if (angles != 3600)
+            {
+                //result="angle sum "+std::to_string(angles);
+                //printf("angle sum %d size:%d\n", angles,size);
+                raws.clear();
+                return -2;
+            }
+            else
+            {
+                int ret=-1;
+                if(from_zero)
+                     ret=find(raws,raws.size(),0);
+                else
+                     ret=find(raws,raws.size(),1800);
+
+                raws.clear();
+                return ret;
+            }
+        }
+        if(raw.angle==(tmp.angle+tmp.span)%3600)
+        {
+            //说明是连续的扇区
+            raws.push_back(raw);
+        }
+
+    }
+    else
+        raws.push_back(raw);
+    return -1;
+}
+//获取起始点位坐标的位置
+int getFirstidx(RawData raw, int angle)
+{
+	int idx=-1;
+	if((raw.angle<=angle*10)&&((raw.angle+raw.span)>angle*10))
+	{
+		//下标减一
+		idx=1.0*(angle*10-raw.angle)/raw.span*raw.N;
+		//printf("%s %d %d %d\n",__FUNCTION__,__LINE__,idx,raw.angle);
+	}
+	return idx;
 }

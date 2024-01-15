@@ -3,6 +3,8 @@
 #include <arpa/inet.h>
 #include <string>
 #include<iostream>
+#include<list>
+#include<queue>
 #define DF_UNIT_IS_MM 0x0001
 #define DF_WITH_INTENSITY 0X0002
 #define DF_DESHADOWED 0x0004
@@ -18,7 +20,7 @@
 
 #define MAX_FANS 120
 
-#define MAX_POINTS 500
+#define MAX_POINTS 510
 
 // #define ANYONE 0x1234abcd
 #define ANYONE -1
@@ -37,7 +39,7 @@
 
 struct DataPoint
 {
-	uint16_t idx;
+	//uint16_t idx;
 	// int angle;
 	double degree;
 	uint16_t distance; // mm
@@ -67,6 +69,13 @@ struct RawData
 	uint8_t counterclockwise;
 	uint32_t flags;	//消息类型
 };
+struct AllPointData
+{
+	std::vector<DataPoint>points;//已缓存的所有数据
+	std::vector<uint32_t>timestamp;//时间戳[2]
+
+};
+
 struct EEpromV101
 {
 	char label[4];	 // "EPRM"
@@ -120,7 +129,7 @@ struct LidarNode
 {
 	HParser hParser;
 	HPublish hPublish;
-	char ip[30];
+	char ip[16];
 	int port;
 	in_addr_t s_addr;
 };
@@ -285,21 +294,8 @@ struct UartState
     bool byte4_error7;
 };
 
-
-
-HParser ParserOpen(int raw_bytes, bool with_chksum, uint32_t dev_id,
-				   int error_circle, double error_scale, bool from_zero,
-				   char *logpath, CommandList cmd, char *ip, int port);
-
-typedef bool (*C_PACK)(int fd_udp, const char* ip, int port,int n, const char *cmd,int nhdr, const char *hdr_str,int nfetch, char *fetch,const char *logPath);
-typedef bool (*S_PACK)(int fd_udp, const char* ip, int port, int n, const char *cmd,void *result,const char *logPath);
-typedef bool (*UART_TALK)(int fd_udp,int n, const char *cmd,int nhdr, const char *hdr_str,int nfetch, char *fetch,const char*logpath);
-typedef bool (*VPC_TALK)(int fd_udp, int mode, int len, const char *cmd, int nfetch, void *result, const char *logpath);
-
-bool setup_lidar_udp(HParser hP, void *func1, void *func2, const char *type, int handle);
-bool setup_lidar_uart(HParser hP, void *func1, void *func2, const char *type, int handle);
-bool setup_lidar_vpc(HParser hP, void *func1, void *func2, const char *type, int handle);
-
+HParser ParserOpen(int raw_bytes, bool with_chksum,int dev_id,
+				   int error_circle, double error_scale, bool from_zero,CommandList cmd, char *ip, int port);
 
 int strip(const char *s, char *buf);
 int ParserClose(HParser);
@@ -311,6 +307,9 @@ void saveLog(const char *logPath, int type, const char *ip, const int port, cons
 int mkpathAll(std::string s, mode_t mode);
 unsigned int stm32crc(unsigned int *ptr, unsigned int len);
 int alarmProc(unsigned char *buf, int len);
-extern char g_uuid[32];
+int autoGetFirstAngle(RawData raw, bool from_zero, std::vector<RawData> &raws,std::string &result);
 
+std::string stringfilter(char *str, int num);
+int autoGetFirstAngle(RawData raw, bool from_zero, std::vector<RawData> &raws,std::string &result);
+int getFirstidx(RawData raw, int angle);
 #endif

@@ -13,7 +13,7 @@
 #define LERR_NETWORK 		8
 #define LERR_RANGER_IDLE	0x10
 #define LERR_ZERO_MISS		0x20
-
+#include<stdint.h>
 struct LidarMsgHdr
 {
 	char sign[4];  // must be "LMSG"

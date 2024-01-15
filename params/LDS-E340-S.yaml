@@ -19,13 +19,13 @@ bluesea_node:
     with_checksum: true
     inverted: false
     reversed: false
-    min_dist: 0.1
+    min_dist: 0.01
     max_dist: 50.0
     error_circle: 3
     error_scale: 0.9
   #CONNECT#
     type: "udp"
-    lidar_ip: "192.168.158.98"
+    lidar_ip: "192.168.0.88"
     lidar_port: 6543
     local_port: 6668
     group_ip: "224.1.2.3"

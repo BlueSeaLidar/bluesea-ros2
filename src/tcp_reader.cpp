@@ -1,25 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <string.h> 
-#include <errno.h>
-#include <sys/types.h> 
-#include <netinet/in.h> 
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#include <sys/wait.h> 
-#include <arpa/inet.h> 
-#include <stdarg.h>
-#include <unistd.h>
-#include <termios.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <unistd.h> 
-#include <signal.h>
-#include <pthread.h>
-
 #include "reader.h"
 
 struct TCPInfo 
