@@ -1,0 +1,8 @@
+
+
+    #FITTER#
+ # filter_open: false  #滤波生效开关
+ # max_range: 20.0 #滤波生效的最大距离
+ # min_range: 0.5 #滤波生效的最小距离
+ # max_range_difference: 0.1 #离异点判断的物理范围
+ # filter_window: 1 #判断离异点下标的范围

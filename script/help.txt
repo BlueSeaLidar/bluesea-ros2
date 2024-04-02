@@ -1,0 +1,13 @@
+1.lsusb  
+Find the list of serial ports that require fixed mapping and find the VID and PID
+2.vim /etc/udev/rules.d
+open the file that need to edit,and Content reference LHLiDAR.rules
+3.sudo service udev reload
+4.sudo service udev restart
+
+
+
+for example
+cmd：lsusb
+print:Bus 003 Device 007: ID 1a86:7523 QinHeng Electronics HL-340 USB-Serial adapter
+need write:KERNEL=="ttyUSB*", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", MODE:="0666", SYMLINK+="LHLiDAR"
