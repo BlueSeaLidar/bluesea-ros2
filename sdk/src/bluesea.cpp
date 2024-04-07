@@ -296,29 +296,12 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 		}
 
 		int N = hub->consume.size();
-		double angle_increment = 0;
+		double angle_increment = M_PI * 2 / N;
 
-		if (argdata.from_zero)
-		{
-			if (argdata.inverted)
-				angle_increment = M_PI * 2 / N;
-			else
-				angle_increment = -M_PI * 2 / N;
-		}
-		else
-		{
-			if (argdata.inverted)
-				angle_increment = M_PI * 2 / N;
-			else
-				angle_increment = -M_PI * 2 / N;
-		}
-
-		// if (counterclockwise)
-		// 	angle_increment = -angle_increment;
 		Fitter *fitter = &argdata.fitter;
 		if (fitter->isopen)
 			filter(hub->consume, fitter->type, fitter->max_range*1000, fitter->min_range*1000, fitter->max_range_difference*1000, fitter->filter_window, angle_increment);
-	
+		counterclockwise=true;
 		m_counterclockwise=counterclockwise;
 		//DEBUG("%d",m_counterclockwise);
 	}
