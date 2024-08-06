@@ -29,8 +29,7 @@ HReader StartUDPReader(const char* type,unsigned short listen_port, bool is_grou
 	int lidar_count, const LidarInfo* lidars);
 
 
-bool SendUdpCmd(HReader hr, int id, int len, char* cmd);
-bool SendUdpCmd2(HReader hr, char* ip, int len, char* cmd);
+bool SendUdpCmd(HReader hr, std::string lidarIp,int port,std::string cmd,int proto);
 HReader StartTCPReader(const char* lidar_ip, unsigned short lidar_port, Parser* hParser, PubHub* hPub);
 
 bool SendTcpCmd(HReader hr, int len, char* cmd);

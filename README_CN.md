@@ -1,10 +1,13 @@
 # 蓝海光电ROS驱动程序（bluesea2_ros_driver） #
 
-## 概述 ##
+## 概述
 ----------
 蓝海光电ROS驱动程序是专门用于连接本公司生产的lidar产品。该驱动程序可以在安装了 ROS 环境的操作系统中运行，主要支持ubuntu系列操作系统（14.04LTS-20.04LTS）。经测试可以运行该ROS驱动程序的硬件平台包括：intel x86 主流 cpu 平台，部分 ARM64 硬件平台（如 英伟达、瑞芯微，树莓派等，可能需要更新cp210x驱动）。
 
-## 获取并构建蓝海ROS驱动包 ##
+## 注意事项
+请保证路径中不带中文字符，否则会编译失败
+
+## 获取并构建蓝海ROS驱动包
 1.从Github获取蓝海ROS驱动程序,并部署对应位置
 
     mkdir bluesea2   											//创建一个文件夹，自定义即可
@@ -25,7 +28,7 @@
     
     roslaunch bluesea2 [launch file]    			//具体launch文件说明如下
 
-## 驱动包launch配置文件说明 ##
+## 驱动包launch配置文件说明
 说明：[launch file]指的是src/launch文件夹下的配置文件，以功能类别区分
 
 - uart_lidar.launch:			串口连接方式的激光雷达
@@ -33,11 +36,14 @@
 - vpc_lidar.launch：				虚拟串口连接方式的激光雷达
 - dual_udp_lidar.launch：		多个udp网络通讯的激光雷达
 - template.launch：				全部参数定义模版
-
+- LDS-U50C-S(only).launch:老款雷达，仅支持数据通讯
+- LDS-U80C-S(only).launch:老款雷达，仅支持数据通讯
+- 
 主要参数配置说明：
 
     #ROS#（框架必须的参数）
-    <param name="topic" value="scan"/>#发布话题
+    <param name="scan_topic" value="scan"/>#发布scan话题
+    <param name="cloud_topic" value="scan" />#发布cloud话题
     <param name="frame_id" value="map" />#标志坐标系的名称
      #DATA#（驱动自定义数据层面的限制参数）
     <param name="min_dist" value="0.01"/>#最小点云距离(m)
@@ -45,6 +51,7 @@
     <param name="from_zero" value="false"/>#帧起始角度是否从0开始(false 为180)
     <param name="output_scan" value="true" />#二维扫描数据(默认)
     <param name="output_cloud" value="false"/>#三维空间数据
+    <param name="output_cloud2" value="false"/>#三维空间数据 输出格式2
     <param name="output_360" value="true" />#按帧输出
 	<param name="inverted" value="false"/>#发布数据角度参数反置(angle_min，angle_max,angle_increment)
     <param name="reversed" value="false"/>#发布数据点云数据倒转(从最后一个点排到第一个点)
@@ -82,21 +89,30 @@
     <param name="alarm_msg" value="-1"/>#设置报警信息,-1不设置 0关闭 1打开
     <param name="direction" value="-1"/>#设置旋转方向(仅支持该指令的雷达使用),-1不设置 0关闭 1打开
 
-## 驱动客户端功能说明 ##
+## 驱动客户端功能说明
 源码位于src/client.cpp
 启停旋转：
     
-    rosrun bluesea2  bluesea2_client start  0  参数1是(start/stop)  参数2是雷达编号(从0开始，如果是负数，说明全部雷达执行)
-
+    ros2 run bluesea2  bluesea2_client scan start      
+    参数1 是话题   参数2是动作(start/stop)
 切换防区：
 	
-	rosrun bluesea2  bluesea2_client switchZone  0    192.168.158.98     参数1是switchZone   参数2是需要切换的防区  参数3是目标雷达ip
+	ros2 run bluesea2  bluesea2_client scan switchZone  0     
+    参数1 是话题   参数2是动作(switchZone)  参数3是选择防区编号(0) 
+
 
 设置转速：
 
-	rosrun bluesea2  bluesea2_client rpm  0 600   参数1是rpm   参数2是雷达编号(从0开始）参数3是需要设置的转速
+	ros2 run bluesea2  bluesea2_client scan rpm  600 
+    参数1 是话题   参数2是动作(set rpm)  参数3是设置rpm的值(600)
 
-## rosbag包操作说明 ##
+打开/关闭心跳包检测：
+
+	ros2 run bluesea2  bluesea2_client heart check  1
+   参数1是service name   参数2是动作(check)  参数3是是否打印(1/0)
+
+
+## rosbag包操作说明
 
 	rostopic list    获取话题列表，驱动默认的话题名称为 /lidar1/scan
 	rosbag record  /lidar1/scan   开始录制数据
@@ -107,6 +123,6 @@
 
 在存放数据包的路径下查看录制的数据包，若提示failed connect master异常，则先ros master后在rosbag play
 
-## 商务支持 ##
+## 商务支持
 
 具体使用问题请通过官网联系技术支持(https://pacecat.com/)

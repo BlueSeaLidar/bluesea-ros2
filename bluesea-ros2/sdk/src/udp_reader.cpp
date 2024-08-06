@@ -262,6 +262,7 @@ void *UdpThreadProc(void *p)
 	return NULL;
 }
 
+
 int AddLidar(HReader hr, const char *lidar_ip, unsigned short lidar_port, Parser *hParser, PubHub* hPub)
 {
 	UDPInfo *info = (UDPInfo *)hr;
@@ -277,9 +278,7 @@ int AddLidar(HReader hr, const char *lidar_ip, unsigned short lidar_port, Parser
 	info->lidars[info->nnode].hPublish = hPub;
 	strcpy(info->lidars[info->nnode].ip, lidar_ip);
 	info->lidars[info->nnode].port = lidar_port;
-
 	DEBUG("add lidar %s:%d", lidar_ip, lidar_port);
-
 	return info->nnode++;
 }
 
@@ -297,7 +296,6 @@ HReader StartUDPReader(const char *type, unsigned short listen_port, bool is_gro
 	strcpy(info->type, type);
 	info->listen_port = listen_port;
 	info->is_group_listener = is_group_listener;
-
 	// open UDP port
 	info->fd_udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
@@ -335,33 +333,20 @@ HReader StartUDPReader(const char *type, unsigned short listen_port, bool is_gro
 	return info;
 }
 
-bool SendUdpCmd(HReader hr, int lidar_id, int len, char *cmd)
+bool SendUdpCmd(HReader hr, std::string lidarIp,int port,std::string cmd,int proto)
 {
 	UDPInfo *info = (UDPInfo *)hr;
 	if (!info || info->fd_udp <= 0 || info->is_group_listener)
 		return false;
 
-	if (lidar_id < 0 || lidar_id >= info->nnode)
-		return false;
-
-	send_cmd_udp(info->fd_udp, info->lidars[lidar_id].ip, info->lidars[lidar_id].port, 0x0043, rand(), len, cmd);
-	return true;
-}
-bool SendUdpCmd2(HReader hr, char *ip, int len, char *cmd)
-{
-	UDPInfo *info = (UDPInfo *)hr;
-	if (!info || info->fd_udp <= 0 || info->is_group_listener)
-		return false;
-
-	for (int i = 0; i < info->nnode; i++)
+	for(int i=0;i<info->nnode;i++)
 	{
-		if (strcmp(ip, info->lidars[i].ip) == 0)
+		if(lidarIp==info->lidars[i].ip &&port == info->lidars[i].port)
 		{
-			send_cmd_udp(info->fd_udp, info->lidars[i].ip, info->lidars[i].port,
-						 0x0053, rand(), len, cmd);
+			send_cmd_udp(info->fd_udp, info->lidars[i].ip, info->lidars[i].port, proto, rand(), cmd.size(), cmd.c_str());
 			return true;
 		}
-	}
+	}	
 	return false;
 }
 
@@ -541,6 +526,17 @@ bool setup_lidar_udp(int handle,Parser* hP,EEpromV101 &param)
 		if (udp_talk_S_PACK(handle, parser->ip, parser->port, cmdLength, parser->cmd.direction, result))
 		{
 			DEBUG("set direction %s", result);
+			break;
+		}
+	}
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.confidence);
+		if (cmdLength <= 0)
+			break;
+		if (udp_talk_C_PACK(handle, parser->ip, parser->port, cmdLength, parser->cmd.confidence, 2, "OK", 0, NULL))
+		{
+			DEBUG("set confidence %s", result);
 			break;
 		}
 	}

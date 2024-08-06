@@ -68,6 +68,9 @@ static Error SAMPLE_TOO_SMALL(-112,"Soft Sampling Angle resolution too small, pl
 static Error DISTANCE_ZERO_LARGE(-113,"Points with a distance of zero scale beyond the error_scale factor of the configuration file");
 static Error DEVICE_OFFLINE(-114,"Serial device list does not exist, please check the device connection");
 static Error CHECKSUM_ERR(-115,"Sector data calibration error, please check whether the data line is in accordance with the specification");
+static Error TOPIC_NO_FIND(-116,"Find a topic that does not exist");
+
+
 
 
 static Error ALARM_LOWPOWER(-201,"Insufficient power supply, or occasional undervoltage");

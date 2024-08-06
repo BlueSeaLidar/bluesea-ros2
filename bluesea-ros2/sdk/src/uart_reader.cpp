@@ -366,6 +366,20 @@ bool setup_lidar_uart(Parser* hP, int handle)
 			break;
 		}
 	}
+	//设置旋转方向
+	for (unsigned int i = 0; i < index; i++)
+	{
+		cmdLength = strlen(parser->cmd.direction);
+		if (cmdLength <= 0)
+			break;
+
+		if (uart_talk(handle, cmdLength, parser->cmd.direction, 2, "OK", 2, buf, 100))
+		{
+			DEBUG("set LiDAR direction OK\n");
+			break;
+		}
+	}
+
 	// setup rpm
 	for (unsigned int i = 0; i < index; i++)
 	{
@@ -611,6 +625,7 @@ void *StartUartReader(const char *type, const char *port, int baudrate, Parser *
 bool SendUartCmd(HReader hr, int len, char *cmd)
 {
 	UartInfo *info = (UartInfo *)hr;
+	
 	if (info && info->fd_uart > 0)
 		write(info->fd_uart, cmd, len);
 	return true;
@@ -683,7 +698,7 @@ int GetDevInfoByUART(const char *port_str, int speed)
 		// }
 	}
 	if(zeroNum<=10)
-	      printf("read max byte %d break\n",rf);
+	      printf("read max byte %ld break\n",rf);
 	if (rf > 12)
 	{
 		for (unsigned int idx = 0; idx < rf - 12; idx++)

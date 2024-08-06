@@ -1,0 +1,39 @@
+#!/usr/bin/python3
+
+from ament_index_python.packages import get_package_share_directory
+
+from launch import LaunchDescription
+from launch_ros.actions import LifecycleNode
+from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch.actions import LogInfo
+
+import lifecycle_msgs.msg
+import os
+
+
+def generate_launch_description():
+    share_dir = get_package_share_directory('bluesea2')
+    parameter_file = LaunchConfiguration('params_file')
+    node_name = 'bluesea_heart_check'
+
+    #对多版本的兼容性处理 首字母e以及之前为18.04或更早,之后为20.04或更晚
+    ROS_DISTRO=''
+    ROS_DISTRO = os.getenv('ROS_DISTRO')
+    print("Current ROS2 Version: ",ROS_DISTRO)
+    if ROS_DISTRO[0] <= 'e':
+        try:
+            driver_node = LifecycleNode( node_name='bluesea_heart_check', node_namespace='/', package='bluesea2', node_executable='bluesea2_heart_check', output='screen')
+        except:
+            pass
+    else :
+        try:
+            driver_node = LifecycleNode( name='bluesea_heart_check', namespace='/', package='bluesea2', executable='bluesea2_heart_check', output='screen', emulate_tty=True)
+        except:
+            pass
+
+
+    return LaunchDescription([
+        driver_node
+    ])

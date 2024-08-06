@@ -2,13 +2,15 @@ bluesea_node:
   ros__parameters:
   #ROS2#
     frame_id: "map"
-    topic: "scan"
+    scan_topic: "scan"
+    cloud_topic: "cloud"
   #DATA#
     dev_id: -1
     raw_bytes: 3
     output_360: true
     output_scan: true
     output_cloud: false
+    output_cloud2: false
     with_angle_filter: false
     min_angle: -1.0
     max_angle: 2.0
@@ -19,9 +21,11 @@ bluesea_node:
     with_checksum: true
     reversed: false
     min_dist: 0.01
-    max_dist: 50.0
+    max_dist: 40.0
     error_circle: 3
     error_scale: 0.9
+    with_confidence: 1
+    unit_is_mm: 0
   #CONNECT#
     type: "udp"
     lidar_ip: "192.168.158.98"

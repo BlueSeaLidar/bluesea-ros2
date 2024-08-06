@@ -46,8 +46,8 @@ static RawData *GetData0xCE_2(const RawDataHdr &hdr, unsigned char *buf, uint32_
 	memcpy(dat, &hdr, HDR_SIZE);
 	dat->span = 360;
 
-	int is_mm = flags & DF_UNIT_IS_MM;
-	int with_conf = flags & DF_WITH_INTENSITY;
+	int is_mm = getbit(flags, DF_UNIT_IS_MM);
+	int with_conf = getbit(flags, DF_WITH_INTENSITY);
 
 	// calc checksum
 	unsigned short sum = hdr.angle + hdr.N, chk;
@@ -57,11 +57,14 @@ static RawData *GetData0xCE_2(const RawDataHdr &hdr, unsigned char *buf, uint32_
 		unsigned short v = *pdat++;
 		unsigned short v2 = *pdat++;
 		unsigned short val = (v2 << 8) | v;
-
 		if (with_conf)
 		{
 			dat->points[i].confidence = val >> 13;
 			dat->points[i].distance = val & 0x1fff;
+			// DEBUG("%d %d",is_mm,dat->points[i].distance);
+			//  if(val&0x7)
+			//  	DEBUG("%d",val&0x7);
+
 			if (is_mm == 0)
 				dat->points[i].distance *= 10;
 		}
@@ -647,7 +650,7 @@ static RawData *GetData0xCF(const RawDataHdr2 &hdr, unsigned char *pdat, bool wi
 	// printf("get CF %d(%d) %d\n", hdr.angle, hdr.N, hdr.span);
 
 	SetTimeStamp(dat);
-	dat->counterclockwise =-1;
+	dat->counterclockwise = -1;
 	return dat;
 }
 
@@ -702,7 +705,7 @@ static RawData *GetData0xDF(const RawDataHdr3 &hdr, unsigned char *pdat, bool wi
 	// printf("get DF %d=%d %d %d\n", hdr.angle, hdr.first, hdr.N, hdr.span);
 
 	SetTimeStamp(dat);
-	dat->counterclockwise =-1;
+	dat->counterclockwise = -1;
 	return dat;
 }
 
@@ -780,7 +783,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 			int ret = MsgProc(parser, unk, unknown);
 			if (ret == 1)
 			{
-				int8_t flag = parser->flags>>24;
+				int8_t flag = parser->flags >> 24;
 				if (strcmp(g_model, "LDS-50C-R") == 0 || strcmp(g_model, "LDS-E200-R") == 0 || strcmp(g_model, "LDS-E200-A") == 0 || strcmp(g_model, "LDS-E200-A4") == 0)
 				{
 					if (flag & 0x1)
@@ -837,7 +840,7 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 					fans[*nfan] = fan;
 					*nfan += 1;
 					idx += HDR_SIZE + hdr.N * 3 + 2;
-					fan->counterclockwise =-1;
+					fan->counterclockwise = -1;
 				}
 				else
 				{
@@ -850,12 +853,10 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 							*nfan += 1;
 							raw_mode = 2;
 							idx += HDR_SIZE + hdr.N * 2 + 2;
-							fan->counterclockwise =1;
-
+							fan->counterclockwise = 1;
 						}
 						else
 							idx += HDR_SIZE + hdr.N * 3 + 2;
-
 					}
 					else
 						idx += HDR_SIZE + hdr.N * 3 + 2;
@@ -869,8 +870,8 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 					fans[*nfan] = fan;
 					*nfan += 1;
 					idx += HDR_SIZE + hdr.N * 2 + 2;
-					raw_mode=2;
-					fan->counterclockwise =1;
+					raw_mode = 2;
+					fan->counterclockwise = 1;
 				}
 				else
 				{
@@ -882,9 +883,9 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 							fans[*nfan] = fan;
 							*nfan += 1;
 							idx += HDR_SIZE + hdr.N * 3 + 2;
-							fan->counterclockwise =-1;
+							fan->counterclockwise = -1;
 						}
-						else 
+						else
 							idx += HDR_SIZE + hdr.N * 2 + 2;
 					}
 					else
@@ -1118,30 +1119,30 @@ int alarmProc(unsigned char *buf, int len)
 				{
 					DEBUG("ALARM ZERO POS ERROR  MSG TYPE:%d", msg->hdr.type);
 				}
-				// 说明有LMSG_ERROR报错信息
-				if (msg->hdr.type % 2 == 1)
-				{
+			}
+			// 说明有LMSG_ERROR报错信息
+			if (msg->hdr.type % 2 == 1)
+			{
 
-					if (getbit(msg->hdr.data, 0) == 1)
-					{
-						DEBUG("LIDAR LOW POWER  MSG TYPE:%d", msg->hdr.type);
-					}
-					if (getbit(msg->hdr.data, 1) == 1)
-					{
-						DEBUG("LIDAR  MOTOR STALL  MSG TYPE:%d", msg->hdr.type);
-					}
-					if (getbit(msg->hdr.data, 2) == 1)
-					{
-						DEBUG("LIDAR RANGING MODULE TEMPERATURE HIGH  MSG TYPE:%d", msg->hdr.type);
-					}
-					if (getbit(msg->hdr.data, 3) == 1)
-					{
-						DEBUG("LIDAR NETWORK ERROR  MSG TYPE:%d", msg->hdr.type);
-					}
-					if (getbit(msg->hdr.data, 4) == 1)
-					{
-						DEBUG("LIDAR RANGER MODULE NO OUTPUT  MSG TYPE:%d", msg->hdr.type);
-					}
+				if (getbit(msg->hdr.data, 0) == 1)
+				{
+					DEBUG("LIDAR LOW POWER  MSG TYPE:%d", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 1) == 1)
+				{
+					DEBUG("LIDAR  MOTOR STALL  MSG TYPE:%d", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 2) == 1)
+				{
+					DEBUG("LIDAR RANGING MODULE TEMPERATURE HIGH  MSG TYPE:%d", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 3) == 1)
+				{
+					DEBUG("LIDAR NETWORK ERROR  MSG TYPE:%d", msg->hdr.type);
+				}
+				if (getbit(msg->hdr.data, 4) == 1)
+				{
+					DEBUG("LIDAR RANGER MODULE NO OUTPUT  MSG TYPE:%d", msg->hdr.type);
 				}
 			}
 		}
@@ -1561,7 +1562,7 @@ int getFirstidx(RawData raw, int angle)
 	return idx;
 }
 
-void PublishData(PubHub* pub, int n, RawData **fans)
+void PublishData(PubHub *pub, int n, RawData **fans)
 {
 	int skip = 0;
 	RawData *drop[MAX_FANS];

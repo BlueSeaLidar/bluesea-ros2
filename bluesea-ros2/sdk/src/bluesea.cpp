@@ -2,7 +2,6 @@
 BlueSeaLidarDriver::BlueSeaLidarDriver()
 {
 	m_reader=NULL;
-	m_should_start=true;
 	memset(&m_cmdlist,0,sizeof(CommandList));
 }
 
@@ -44,7 +43,12 @@ void BlueSeaLidarDriver::getInitCmds(ArgData &argdata)
 	if (argdata.alarm_msg >= 0)
 		sprintf(m_cmdlist.alarm, "LSPST:%dH", argdata.alarm_msg ? 3 : 1);
 	if (argdata.direction >= 0)
-		sprintf(m_cmdlist.direction, "LSCCW:%dH", argdata.direction);
+	{
+		if(argdata.type=="uart")
+			sprintf(m_cmdlist.direction, "LSMCCW:%dH", !(argdata.direction));
+		else if(argdata.type=="vpc"||argdata.type=="udp")
+			sprintf(m_cmdlist.direction, "LSCCW:%dH", argdata.direction);
+	}
 	if (argdata.unit_is_mm >= 0)
 		sprintf(m_cmdlist.unit_mm, "%s", argdata.unit_is_mm ? "LMDMMH" : "LMDCMH");
 	if (argdata.with_confidence >= 0)
@@ -82,6 +86,14 @@ void BlueSeaLidarDriver::openLidarThread()
 			lidars[i].pub = m_hubs[i];
 			strcpy(lidars[i].lidar_ip, m_argdata.connectargs[i].arg1.c_str());
 			lidars[i].lidar_port = m_argdata.connectargs[i].arg2;
+
+			uint32_t flags=0;
+			if(m_argdata.unit_is_mm)
+				setbit(flags,DF_UNIT_IS_MM);
+			if(m_argdata.with_confidence)
+				setbit(flags,DF_WITH_INTENSITY);
+
+			lidars[i].parser->flags=flags;
 		}
 		m_reader = StartUDPReader(m_argdata.type.c_str(), m_argdata.localport, m_argdata.custom.is_group_listener, m_argdata.custom.group_ip.c_str(), m_argdata.num, lidars);
 	}
@@ -91,46 +103,46 @@ void BlueSeaLidarDriver::openLidarThread()
 	}
 }
 
-bool BlueSeaLidarDriver::sendCmd(int len, char *cmd, int index)
+bool BlueSeaLidarDriver::sendCmd(std::string topic,std::string cmd,int proto)
 {
-	if(strcmp(cmd,"LSTARH")==0)
-		m_should_start=true;
-	if(strcmp(cmd,"LSTOPH")==0)
-		m_should_start=false;
+	int idx=-1;
+	for(int i=0;i<m_argdata.connectargs.size();i++)
+	{
+		if(topic == m_argdata.connectargs[i].cloud_topics ||topic == m_argdata.connectargs[i].scan_topics)
+		{
+			idx=i;
+		}
+	}
+	if(idx<0)
+	{
+		ERROR((int)TOPIC_NO_FIND,Error::GetErrorString(TOPIC_NO_FIND).c_str());
+		return false;
+	}
+	std::string arg1 = 	m_argdata.connectargs[idx].arg1;
+	int arg2 = 	m_argdata.connectargs[idx].arg2;
+
 
 	if (m_argdata.type == "uart")
 	{
-		return SendUartCmd(m_reader, len, cmd);
+		return SendUartCmd(m_reader, cmd.size(), (char*)cmd.c_str());
 	}
 	else if (m_argdata.type == "vpc")
 	{
-		return SendVpcCmd(m_reader, len, cmd);
+		return SendVpcCmd(m_reader, cmd.size(), (char*)cmd.c_str());
 	}
 	else if (m_argdata.type == "udp")
 	{
-		if (index < 0)
-		{
-			int tmp = 0;
-			memcpy(&tmp, m_reader, sizeof(int));
-			for (int i = 0; i < tmp; i++)
-			{
-				SendUdpCmd(m_reader, i, len, cmd);
-			}
-			return true;
-		}
-		else
-			return SendUdpCmd(m_reader, index, len, cmd);
+		return SendUdpCmd(m_reader, arg1,arg2,cmd,proto);
 	}
-	else if (m_argdata.type == "tcp")
-	{
-		return SendTcpCmd(m_reader, len, cmd);
-	}
+	// else if (m_argdata.type == "tcp")
+	// {
+	// 	return SendTcpCmd(m_reader, len, cmd,proto);
+	// }
 	return false;
 }
-bool BlueSeaLidarDriver::sendUdpCmd2(char *ip, int len, char *cmd)
-{
-	return SendUdpCmd2(m_reader,ip, len, cmd);
-}
+
+
+
 PubHub*BlueSeaLidarDriver::getHub(int i)
 {
 	return m_hubs[i];
@@ -297,10 +309,10 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 
 		int N = hub->consume.size();
 		double angle_increment = M_PI * 2 / N;
-
 		Fitter *fitter = &argdata.fitter;
 		if (fitter->isopen)
 			filter(hub->consume, fitter->type, fitter->max_range*1000, fitter->min_range*1000, fitter->max_range_difference*1000, fitter->filter_window, angle_increment);
+	
 		counterclockwise=true;
 		m_counterclockwise=counterclockwise;
 		//DEBUG("%d",m_counterclockwise);

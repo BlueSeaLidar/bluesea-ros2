@@ -5,7 +5,7 @@
 #include"usererror.h"
 
 
-#define BLUESEA2_VERSION "2.2"
+#define BLUESEA2_VERSION "2.3"
 
 class BlueSeaLidarDriver
 {
@@ -15,8 +15,9 @@ public:
     //Get the instructions that need to be executed for initialization
     void getInitCmds(ArgData &argdata);
     void openLidarThread();
+    //void openHeartThread();
 
-    bool sendCmd(int len, char *cmd, int index);
+    bool sendCmd(std::string topic,std::string cmd,int proto);
     bool sendUdpCmd2(char *ip, int len, char *cmd);
 
     PubHub*getHub(int i);
@@ -33,7 +34,6 @@ private:
     HReader m_reader;//NULL
     CommandList m_cmdlist;//init need run cmds
     //std::string m_type;//"uart"
-    bool m_should_start;//true;
     Parser *m_parsers[MAX_LIDARS];
 	PubHub *m_hubs[MAX_LIDARS];
     ArgData m_argdata;

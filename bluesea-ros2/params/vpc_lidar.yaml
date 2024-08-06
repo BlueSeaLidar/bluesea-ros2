@@ -2,13 +2,15 @@ bluesea_node:
   ros__parameters:
   #ROS2
     frame_id: "map"
-    topic: "scan"
+    scan_topic: "scan"
+    cloud_topic: "cloud"
   #DATA#
     dev_id: -1
     raw_bytes: 3
     output_360: true
     output_scan: true
     output_cloud: false
+    output_cloud2: false
     with_angle_filter: false
     min_angle: -3.14159
     max_angle: 3.14159

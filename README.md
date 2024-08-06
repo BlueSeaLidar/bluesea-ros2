@@ -1,10 +1,13 @@
-# BLUESEA ROS2 driver #
+# BLUESEA ROS2 driver
 
-## Overview ##
+## Overview 
 ----------
 BLUESEA ROS2 driver is specially designed to connect to the lidar products produced by our company. The driver can run on operating systems with ROS2 installed, and mainly supports ubuntu series operating systems (14.04LTS-20.04LTS). The hardware platforms that have been tested to run the ROS2 driver include: Intel x86 mainstream CPU platform, and some ARM64 hardware platforms (such as NVIDIA, Rockchip, Raspberry Pi, etc., which may need to update the cp210x driver).
 
-## Get and build the BLUESEA ROS driver package ##
+## Note 
+----------
+Please ensure that the path does not contain Chinese characters, otherwise the compilation will fail!
+## Get and build the BLUESEA ROS driver package
 1.Get the BLUESEA ROS driver from Github and deploy the corresponding location
 
     mkdir bluesea2   											//create a folder and customize it
@@ -24,7 +27,7 @@ BLUESEA ROS2 driver is specially designed to connect to the lidar products produ
     
     ros2 launch bluesea2 [launch file]    		//The specific launch file description is as follows
 
-## Driver launch launch file  ##
+## Driver launch launch file
 explain：[launch file] refers to the configuration files in the src/launch folder, distinguished by functional categories
 
 - uart_lidar.launch(clockwise/anticlockwise):			lidar with serial port connection method
@@ -32,12 +35,14 @@ explain：[launch file] refers to the configuration files in the src/launch fold
 - vpc_lidar.launch(clockwise/anticlockwise)：				lidar with virtual serial port connection method
 - dual_udp_lidar.launch(clockwise/anticlockwise)：		lidar with multiple UDP network communication(only one node)
 - template：				All parameter definition templates
-
+- LDS-U50C-S(only).launch:Older lidars, data communication only
+- LDS-U80C-S(only).launch:Older lidars, data communication only
 
 Main parameter configuration instructions：
 
     #ROS# (mandatory parameter for the framework)
-    <param name="topic" value="scan" />#Publish topic
+    <param name="scan_topic" value="scan" />#Publish topic  scan
+    <param name="cloud_topic" value="scan" />#Publish topic cloud
     <param name="frame_id" value="map" />#Name of the flag coordinate system
      #DATA# (driver-defined data level limiting parameter)
     <param name="min_dist" value="0.01" />#Minimum point cloud distance (m)
@@ -45,6 +50,7 @@ Main parameter configuration instructions：
     <param name="from_zero" value="false"/>#Whether start angle is from 0 (false is 180).
     <param name="output_scan" value="true" />#2D scan data (default)
     <param name="output_cloud" value="false"/>#3D spatial data.
+    <param name="output_cloud2" value="false"/>#三维空间数据 输出格式2
     <param name="output_360" value="true" />#Output by frame.
     <param name="inverted" value="false"/>#Publish data angle parameter inverted(angle_min,angle_max,angle_increment).
     <param name="reversed" value="false"/>#Publish data point cloud data reversed (row from last point to first point)
@@ -83,22 +89,29 @@ Main parameter configuration instructions：
     <param name="direction" value="-1"/>#Set direction of rotation(only used by lidar which support this command),-1 not set 0 off 1 on
 
 
-## Driver Client Functional Description ##
+## Driver Client Functional Description
 source code locate at src/client.cpp
 start/stop rotate：
     
-    #rosrun bluesea2  bluesea2_client start  0  arg1 is (start/stop)  arg2 is lidar serial (Starting from 0, if it is a negative number, it means that all lidars are executed.)
-    ros2 run bluesea2  bluesea_node_client start 
-    ros2 run bluesea2 bluesea_node_client stop 
+    ros2 run bluesea2  bluesea_node_client scan start 
+    arg1 is topic   arg2 is action(start/stop)
+
 switch defense zones：
 	
-	#rosrun bluesea2  bluesea2_client switchZone  0    192.168.158.98     arg1 is switchZone   arg2 is defense zones to be switched  arg3 is lidar ip
+	ros2 run bluesea2  bluesea2_client scan switchZone  0  
+    arg1 is topic   arg2 is action(switchZone)  arg3 is select zone id(0)     
 
 set rpm：
 
-	rosrun bluesea2  bluesea2_client rpm  0 600   arg1 is rpm   arg2 is lidar serial(start from zero)  arg3 is rpm to be set
+	ros2 run bluesea2  bluesea2_client scan rpm  600   
+    arg1 is topic   arg2 is action(set rpm)  arg3 is rpm value(600)
 
-## rosbag bag operating instructions ##
+set heart check:
+
+    ros2 run bluesea2  bluesea2_client heart check  1
+    arg1 is service name   arg2 is action(check)  arg3 is print(1) / not print(0)
+
+## rosbag bag operating instructions
 
 	rostopic list 
 Get the topic list, the driver default topic name is /lidar1/scan
@@ -113,6 +126,6 @@ The recorded file is named with a timestamp, to stop recording, CTRL+C in the cu
 
 Check the recorded packet in the path where the packet is stored, if it prompts failed connect master exception, then ros master first and then rosbag play.
 
-## Business Support ##
+## Business Support
 
 Please contact the technical support (https://pacecat.com/) through the official website for specific usage problems.

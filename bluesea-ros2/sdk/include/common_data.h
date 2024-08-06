@@ -33,18 +33,21 @@
 #define GS_PACK 0x4753
 #define S_PACK 0x0053
 #define C_PACK 0x0043
-#define M_PI 3.1415926535898
+#ifndef M_PI
+	#define M_PI 3.1415926535898
+#endif
+
 #define getbit(x, y) ((x) >> (y)&1) // 获取X的Y位置数据
 #define setbit(x, y) x |= (1 << y)	// 将X的第Y位置1
 #define clrbit(x, y) x &= ~(1 << y) // 将X的第Y位清0
 
-
+#define HeartPort 6789
 struct DataPoint
 {
 	//uint16_t idx;
 	// int angle;
 	double degree;
-	uint16_t distance; // mm
+	uint32_t distance; // mm
 	uint8_t confidence;
 };
 struct CmdHeader
@@ -323,7 +326,7 @@ typedef struct
     unsigned short N;
     uint32_t ts[2];
 
-    DataPoint points[0];
+    DataPoint points[1];
 
 }DataPoints,*PDataPoints;
 
@@ -377,7 +380,7 @@ struct LidarInfo {
 
 struct ConnectArg
 {
-	std::string laser_topics;
+	std::string scan_topics;
 	std::string cloud_topics;
 	std::string arg1;
 	int arg2;
@@ -415,6 +418,7 @@ struct ArgData
 	bool from_zero;
 	bool output_scan;
 	bool output_cloud;
+	bool output_cloud2;
 	bool inverted;
 	bool reversed;
 	bool hard_resample;
@@ -456,6 +460,139 @@ typedef struct
   uint8_t reserved[11];
   uint32_t crc;
 }PROCOTOL_HOST_ALARM_ST;
+
+struct DevInfoV101
+{
+    char sign[4];
+    uint32_t proto_version;
+    uint32_t timestamp[2];
+    char dev_sn[20];
+    char dev_type[16];
+    uint32_t version;
+    uint32_t dev_id;
+    uint8_t ip[4];
+    uint8_t mask[4];
+    uint8_t gateway[4];
+    uint8_t remote_ip[4];
+
+    uint16_t remote_udp;
+    uint16_t port;
+    uint16_t status;
+    uint16_t rpm;
+
+    uint16_t freq;
+    uint16_t unused;
+    int16_t CpuTemp;
+    uint16_t InputVolt;
+    uint8_t alarm[16];
+    uint32_t crc;
+};
+
+struct DevInfo
+{
+    //转速	2个字节
+    unsigned short rpm;
+    //启动脉冲个数	2个字节
+    unsigned short pulse;
+    //保留	4个字节
+    char sign[4];
+    //版本号	2个字节
+    unsigned short version;
+    //ip地址	4个 字节
+    unsigned char ip[4];
+    //子网掩码	4个字节
+    unsigned char mask[4];
+    //网关地址	4个字节
+    unsigned char gateway[4];
+    //默认目标IP	4个字节
+    unsigned char remote_ip[4];
+    //默认目标udp端口号	2个字节
+    unsigned short remote_udp;
+    //默认UDP对外服务端口号	2个字节
+    unsigned short port;
+    //物体分辨率	1个字节
+    unsigned char fir;
+    //偏置	6个字节
+    char zero_offset[6];
+    //机器序号	20个字节
+    char dev_sn[20];
+    //机器类型	11个字节
+    char dev_type[11];
+    //IO类型选择	1个字节
+    char io_type;
+    //响应圈数	1个字节
+    unsigned char cir;
+    //IO功能引脚配置	10个字节
+    unsigned char io_mux[10];
+};
+struct DevInfo2
+{
+    // 标签	4个字节
+    char sign[4];
+    // 机器序号	20个字节
+    char dev_sn[20];
+    // 机器类型	11个字节
+    char dev_type[12];
+    //版本号	2个字节
+    unsigned short version;
+    // ip地址	4个 字节
+    unsigned char ip[4];
+    // 子网掩码	4个字节
+    unsigned char mask[4];
+    // 网关地址	4个字节
+    unsigned char gateway[4];
+    // 默认目标IP	4个字节
+    unsigned char remote_ip[4];
+    //默认目标udp端口号	2个字节
+    unsigned short remote_udp;
+    // 默认UDP对外服务端口号	2个字节
+    unsigned short port;
+    //保留	2个字节
+    char reserver[2];
+};
+enum ConnType
+{
+    TYPE_COM,
+    TYPE_UDP_V1,
+    TYPE_UDP_V2,
+    TYPE_UDP_V101,
+    TYPE_VPC
+
+};
+
+struct DevConnInfo
+{
+    ConnType type;
+    char com_port[128];
+    int com_speed;
+    char conn_ip[32];
+    int conn_port;
+    char mac[32];
+    tm ts;
+    union {
+        DevInfo v1;// info;
+        DevInfoV101 v101;// info101;
+        DevInfo2 v2;
+    } info;
+};
+
+//心跳包 16字节报警信息
+#define FUN_LV_1	 			0
+#define FUN_LV_2	 			1
+#define FUN_LV_3				2
+#define FUN_COVER				3
+#define FUN_NO_DATA			4
+#define FUN_ZONE_ACTIVE	5
+#define FUN_SYS_ERR			6
+#define FUN_RUN					7
+#define FUN_NET_LINK		8
+#define FUN_UPDATING		9
+#define FUN_ZERO_POS		10
+//#define FUN_HIGH_TEMP		11
+//#define FUN_LOW_POWER		12
+#define FUN_IS_BOX          13  //new
+#define FUN_USB_LINK		14
+#define FUN_ZONE_DEFINED		15
 
 
 #endif
