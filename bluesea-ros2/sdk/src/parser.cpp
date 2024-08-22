@@ -784,7 +784,8 @@ static int ParseStream(Parser *parser, int len, unsigned char *buf, int *nfan, R
 			if (ret == 1)
 			{
 				int8_t flag = parser->flags >> 24;
-				if (strcmp(g_model, "LDS-50C-R") == 0 || strcmp(g_model, "LDS-E200-R") == 0 || strcmp(g_model, "LDS-E200-A") == 0 || strcmp(g_model, "LDS-E200-A4") == 0)
+				if (strcmp(g_model, "LDS-50C-R") == 0 || strcmp(g_model, "LDS-E200-R") == 0 || strcmp(g_model, "LDS-E200-A") == 0 || strcmp(g_model, "LDS-E200-A4") == 0
+				|| strcmp(g_model, "LDS-E210-R") == 0|| strcmp(g_model, "LDS-E210-A") == 0)
 				{
 					if (flag & 0x1)
 					{
@@ -1505,51 +1506,51 @@ int find(std::vector<RawData> a, int n, int x)
 
 	return a[r].angle;
 }
-int autoGetFirstAngle(RawData raw, bool from_zero, std::vector<RawData> &raws, std::string &result)
-{
-	int angles = 0;
-	int size = raws.size();
-	// printf("angle %d  size:%d\n", raw.angle,size);
-	if (size >= 1)
-	{
-		RawData tmp = raws.at(size - 1);
-		RawData tmp2 = raws.at(0);
-		if (raw.angle == tmp2.angle)
-		{
-			for (int i = 0; i < size; i++)
-			{
-				tmp = raws.at(i);
-				angles += tmp.span;
-			}
-			if (angles != 3600)
-			{
-				// result="angle sum "+std::to_string(angles);
-				// printf("angle sum %d size:%d\n", angles,size);
-				raws.clear();
-				return -2;
-			}
-			else
-			{
-				int ret = -1;
-				if (from_zero)
-					ret = find(raws, raws.size(), 0);
-				else
-					ret = find(raws, raws.size(), 1800);
+// int autoGetFirstAngle(RawData raw, bool from_zero, std::vector<RawData> &raws, std::string &result)
+// {
+// 	int angles = 0;
+// 	int size = raws.size();
+// 	// printf("angle %d  size:%d\n", raw.angle,size);
+// 	if (size >= 1)
+// 	{
+// 		RawData tmp = raws.at(size - 1);
+// 		RawData tmp2 = raws.at(0);
+// 		if (raw.angle == tmp2.angle)
+// 		{
+// 			for (int i = 0; i < size; i++)
+// 			{
+// 				tmp = raws.at(i);
+// 				angles += tmp.span;
+// 			}
+// 			if (angles != 3600)
+// 			{
+// 				// result="angle sum "+std::to_string(angles);
+// 				// printf("angle sum %d size:%d\n", angles,size);
+// 				raws.clear();
+// 				return -2;
+// 			}
+// 			else
+// 			{
+// 				int ret = -1;
+// 				if (from_zero)
+// 					ret = find(raws, raws.size(), 0);
+// 				else
+// 					ret = find(raws, raws.size(), 1800);
 
-				raws.clear();
-				return ret;
-			}
-		}
-		if (raw.angle == (tmp.angle + tmp.span) % 3600)
-		{
-			// 说明是连续的扇区
-			raws.push_back(raw);
-		}
-	}
-	else
-		raws.push_back(raw);
-	return -1;
-}
+// 				raws.clear();
+// 				return ret;
+// 			}
+// 		}
+// 		if (raw.angle == (tmp.angle + tmp.span) % 3600)
+// 		{
+// 			// 说明是连续的扇区
+// 			raws.push_back(raw);
+// 		}
+// 	}
+// 	else
+// 		raws.push_back(raw);
+// 	return -1;
+// }
 // 获取起始点位坐标的位置
 int getFirstidx(RawData raw, int angle)
 {

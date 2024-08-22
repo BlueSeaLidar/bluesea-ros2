@@ -5,7 +5,7 @@
 #include <map>
 #include <cassert>
 
-
+#define UNUSED(x) (void)(x)
 
 class Error
 {

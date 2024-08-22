@@ -5,7 +5,7 @@
 #include"usererror.h"
 
 
-#define BLUESEA2_VERSION "2.3"
+#define BLUESEA2_VERSION "2.4"
 
 class BlueSeaLidarDriver
 {
@@ -37,5 +37,5 @@ private:
     Parser *m_parsers[MAX_LIDARS];
 	PubHub *m_hubs[MAX_LIDARS];
     ArgData m_argdata;
-    int m_counterclockwise{false};
+    int m_counterclockwise;
 };

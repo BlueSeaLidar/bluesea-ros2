@@ -1,3 +1,4 @@
+
 #include "../include/algorithmAPI.h"
 #include<math.h>
 #include<limits>
@@ -5,15 +6,15 @@
 bool checkWindowValid2(std::vector<DataPoint> scan, size_t idx, size_t window, double max_distance,double angle_increment)
 {
  
-  int num_neighbors = 0;
+  unsigned int num_neighbors = 0;
   const float r1 = scan.at(idx).distance; // 当前点云的距离数据
   float r2 = 0.;                      // 范围内点云的数据
   // Look around the current point until either the window is exceeded
   // or the number of neighbors was found.
-  for (int y = -(int)window; y < (int)window + 1 && num_neighbors < (int)window; y++)
+  for (int y = -(int)window; y < (int)window + 1 && num_neighbors <window; y++)
   {
     int j = idx + y;
-    if (j < 0 || j >= static_cast<int>(scan.size())||idx == j)
+    if (j < 0 || j >= static_cast<int>(scan.size())||idx == (size_t)j)
     {
       continue;
     }
@@ -40,7 +41,7 @@ bool checkWindowValid2(std::vector<DataPoint> scan, size_t idx, size_t window, d
   }
 }
 
-bool filter(std::vector<DataPoint>  &output_scan, int filter_type, double max_range, double min_range, double max_range_difference, int filter_window,double angle_increment)
+bool filter(std::vector<DataPoint>  &output_scan, double max_range, double min_range, double max_range_difference, unsigned int filter_window,double angle_increment)
 {
   std::vector<bool> valid_ranges;
   /*Check if range size is big enough to use7 the filter window */
@@ -92,9 +93,8 @@ bool filter(std::vector<DataPoint>  &output_scan, int filter_type, double max_ra
 }
 bool checkZeroDistance(std::vector<DataPoint>data,float error_scale)
 {
-  bool result=true;
   int lengthZeroNum = 0;
-  for(int i=0;i<data.size();i++)
+  for(unsigned int i=0;i<data.size();i++)
   {
     if(data.at(i).distance==0)
       lengthZeroNum++;

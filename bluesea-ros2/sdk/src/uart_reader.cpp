@@ -1,6 +1,6 @@
 #include "../include/reader.h"
 
-extern "C" int change_baud(int fd, int baud);
+extern "C" int change_baud(int fd, unsigned int baud);
 
 bool uart_talk(int fd, int n, const char *cmd, int nhdr, const char *hdr_str, int nfetch, char *fetch, int waittime, int CacheLength)
 {
@@ -33,8 +33,7 @@ bool uart_talk(int fd, int n, const char *cmd, int nhdr, const char *hdr_str, in
 	}
 	// if(idx>0)
 	//     printf("read max byte break\n");
-	bool res = false;
-	for (unsigned int i = 0; i < CacheLength - nhdr - nfetch; i++)
+	for ( int i = 0; i < CacheLength - nhdr - nfetch; i++)
 	{
 		if (memcmp(buf + i, hdr_str, nhdr) == 0 && nhdr > 0)
 		{
@@ -43,25 +42,25 @@ bool uart_talk(int fd, int n, const char *cmd, int nhdr, const char *hdr_str, in
 				if (strcmp(cmd, "LVERSH") == 0 || strcmp(cmd, "LUUIDH") == 0 || strcmp(cmd, "LTYPEH") == 0 || strcmp(cmd, "LQAZNH") == 0 || strcmp(cmd, "LQPSTH") == 0 || strcmp(cmd, "LQNPNH") == 0 || strcmp(cmd, "LQOUTH") == 0 || strcmp(cmd, "LQCIRH") == 0 || strcmp(cmd, "LQFIRH") == 0 || strcmp(cmd, "LQSRPMH") == 0 || strcmp(cmd, "LQSMTH") == 0 || strcmp(cmd, "LQDSWH") == 0 || strcmp(cmd, "LQZTPH") == 0 || strcmp(cmd, "LQSAFH") == 0 || strcmp(cmd, "LQZIRH") == 0)
 				{
 					memcpy(fetch, buf + i + nhdr, nfetch);
-					fetch[nfetch] = 0;
+					fetch[nfetch] = '\0';
 				}
 				else if (strstr(cmd, "LSRPM") != NULL)
 				{
 					if (buf[i + nhdr + 1] == 'O' && buf[i + nhdr + 2] == 'K')
 					{
-						strncpy(fetch, "OK", 2);
-						fetch[2] = 0;
+						strncpy(fetch, "OK", 3);
+						fetch[2] = '\0';
 					}
 					else if (buf[i + nhdr + 1] == 'e' && buf[i + nhdr + 2] == 'r')
 					{
-						strncpy(fetch, "NG", 2);
-						fetch[2] = 0;
+						strncpy(fetch, "NG", 3);
+						fetch[2] = '\0';
 					}
 				}
 				else
 				{
-					strncpy(fetch, "OK", 2);
-					fetch[2] = 0;
+					strncpy(fetch, "OK", 3);
+					fetch[2] ='\0';
 				}
 			}
 			return true;
@@ -117,7 +116,7 @@ bool vpc_talk(int hcom, int mode, short sn, int len, const char *cmd, int nfetch
 
 	int len2 = len + sizeof(CmdHeader) + 4;
 	int nr = write(hcom, buffer, len2);
-	char buf[2048];
+	unsigned char buf[2048];
 	int index = 10;
 	// 4C 48 BC FF   xx xx xx xx  result
 	// 读取之后的10*2048个长度，如果不存在即判定失败
@@ -136,7 +135,7 @@ bool vpc_talk(int hcom, int mode, short sn, int len, const char *cmd, int nfetch
 			if (mode == C_PACK)
 			{
 				char *fetch = (char *)result;
-				if (buf[i] == 0x4C && buf[i + 1] == 0x48 && buf[i + 2] == (signed char)0xBC && buf[i + 3] == (signed char)0xFF)
+				if (buf[i] == 0x4C && buf[i + 1] == 0x48 && buf[i + 2] == 0xBC && buf[i + 3] == 0xFF)
 				{
 					/*int packSN = ((unsigned int)buf[i + 5] << 8) | (unsigned int)buf[i + 4];
 					if (packSN != sn)
@@ -159,7 +158,7 @@ bool vpc_talk(int hcom, int mode, short sn, int len, const char *cmd, int nfetch
 			}
 			else if (mode == S_PACK)
 			{
-				if ((buf[i + 2] == (signed char)0xAC && buf[i + 3] == (signed char)0xB8) || (buf[i + 2] == (signed char)0xAC && buf[i + 3] == (signed char)0xff))
+				if ((buf[i + 2] == 0xAC && buf[i + 3] == 0xB8) || (buf[i + 2] == 0xAC && buf[i + 3] == 0xff))
 				{
 					// printf("%02x  %02x\n", buf[i + 2], buf[i + 3]);
 					// 随机码判定
@@ -178,7 +177,7 @@ bool vpc_talk(int hcom, int mode, short sn, int len, const char *cmd, int nfetch
 	return false;
 }
 
-int open_serial_port(const char *port, int baudrate)
+int open_serial_port(const char *port, unsigned int baudrate)
 {
 	int fd = open(port, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd < 0)
@@ -280,8 +279,6 @@ bool setup_lidar_uart(Parser* hP, int handle)
 	unsigned int index = 5;
 	int cmdLength;
 	char buf[32];
-	char result[3] = {0};
-	result[2] = '\0';
 
 	for (unsigned int i = 0; i < index; i++)
 	{
@@ -585,7 +582,7 @@ void *UartThreadProc(void *p)
 		// sleep(10);
 		return NULL;
 	}
-	int baudrate=0;
+	unsigned int baudrate=0;
 	if(info->baudrate<=0)
 	{
 		baudrate = GetComBaud(info->port);
@@ -665,10 +662,9 @@ void StopUartReader(HReader hr)
 	pthread_join(info->thr, NULL);
 	delete info;
 }
-int GetDevInfoByUART(const char *port_str, int speed)
+int GetDevInfoByUART(const char *port_str, unsigned int speed)
 {
 	int zeroNum = 0;
-	unsigned long wf = 0, rf = 0;
 	unsigned int check_size = 1024;
 	int hPort = open_serial_port(port_str, speed);
 	if (hPort <= 0)
@@ -676,9 +672,10 @@ int GetDevInfoByUART(const char *port_str, int speed)
 		return false;
 	}
 	char cmd[] = "LVERSH";
-	wf = write(hPort, cmd, sizeof(cmd));
+	write(hPort, cmd, sizeof(cmd));
 	int bOK = false;
 	unsigned char *buf = new unsigned char[check_size];
+	unsigned long rf = 0;
 	while (rf < check_size)
 	{
 		int tmp = read(hPort, buf + rf, check_size - rf);
@@ -731,8 +728,8 @@ int GetComBaud(std::string uartname)
 
 	for (unsigned int j = 0; j < port_list.size(); j++)
 	{
-		int com_speed = port_list.at(j);
-		if (int ret = GetDevInfoByUART(uartname.c_str(), com_speed))
+		unsigned int com_speed = port_list.at(j);
+		if (GetDevInfoByUART(uartname.c_str(), com_speed))
 		{
 			return com_speed;
 		}

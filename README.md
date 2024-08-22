@@ -2,7 +2,7 @@
 
 ## Overview 
 ----------
-BLUESEA ROS2 driver is specially designed to connect to the lidar products produced by our company. The driver can run on operating systems with ROS2 installed, and mainly supports ubuntu series operating systems (14.04LTS-20.04LTS). The hardware platforms that have been tested to run the ROS2 driver include: Intel x86 mainstream CPU platform, and some ARM64 hardware platforms (such as NVIDIA, Rockchip, Raspberry Pi, etc., which may need to update the cp210x driver).
+BLUESEA ROS2 driver is specially designed to connect to the lidar products produced by our company. The driver can run on operating systems with ROS2 installed, and mainly supports ubuntu series operating systems (18.04LTS-now). The hardware platforms that have been tested to run the ROS2 driver include: Intel x86 mainstream CPU platform, and some ARM64 hardware platforms (such as NVIDIA, Rockchip, Raspberry Pi, etc., which may need to update the cp210x driver).
 
 ## Note 
 ----------
@@ -15,7 +15,7 @@ Please ensure that the path does not contain Chinese characters, otherwise the c
     git clone https://github.com/BlueSeaLidar/bluesea-ros2.git  src //download the driver package and rename it to src
 2.Build
 
-    catkin_make
+    colcon build 
 3.Update the current ROS2 package environment
 
     source ./install/setup.sh
@@ -40,7 +40,7 @@ explain：[launch file] refers to the configuration files in the src/launch fold
 
 Main parameter configuration instructions：
 
-    #ROS# (mandatory parameter for the framework)
+    #ROS2# (mandatory parameter for the framework)
     <param name="scan_topic" value="scan" />#Publish topic  scan
     <param name="cloud_topic" value="scan" />#Publish topic cloud
     <param name="frame_id" value="map" />#Name of the flag coordinate system
@@ -113,16 +113,16 @@ set heart check:
 
 ## rosbag bag operating instructions
 
-	rostopic list 
+	ros2 topic list 
 Get the topic list, the driver default topic name is /lidar1/scan
 
-	rosbag record /lidar1/scan 
+	ros2 bag record /lidar1/scan 
 
 Start recording data.
 
 The recorded file is named with a timestamp, to stop recording, CTRL+C in the current terminal 
 
-	rosbag play packet name
+	ros2 bag play packet name
 
 Check the recorded packet in the path where the packet is stored, if it prompts failed connect master exception, then ros master first and then rosbag play.
 

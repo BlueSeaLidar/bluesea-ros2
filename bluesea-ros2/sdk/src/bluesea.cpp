@@ -2,6 +2,7 @@
 BlueSeaLidarDriver::BlueSeaLidarDriver()
 {
 	m_reader=NULL;
+	m_counterclockwise=false;
 	memset(&m_cmdlist,0,sizeof(CommandList));
 }
 
@@ -106,7 +107,7 @@ void BlueSeaLidarDriver::openLidarThread()
 bool BlueSeaLidarDriver::sendCmd(std::string topic,std::string cmd,int proto)
 {
 	int idx=-1;
-	for(int i=0;i<m_argdata.connectargs.size();i++)
+	for(unsigned int i=0;i<m_argdata.connectargs.size();i++)
 	{
 		if(topic == m_argdata.connectargs[i].cloud_topics ||topic == m_argdata.connectargs[i].scan_topics)
 		{
@@ -311,7 +312,7 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 		double angle_increment = M_PI * 2 / N;
 		Fitter *fitter = &argdata.fitter;
 		if (fitter->isopen)
-			filter(hub->consume, fitter->type, fitter->max_range*1000, fitter->min_range*1000, fitter->max_range_difference*1000, fitter->filter_window, angle_increment);
+			filter(hub->consume,fitter->max_range*1000, fitter->min_range*1000, fitter->max_range_difference*1000, fitter->filter_window, angle_increment);
 	
 		counterclockwise=true;
 		m_counterclockwise=counterclockwise;
@@ -369,7 +370,7 @@ int BlueSeaLidarDriver::GetCount(std::vector<DataPoint> data, double min_deg, do
 {
 	int N = 0;
 
-	for (int i = 0; i < data.size(); i++)
+	for (unsigned int i = 0; i < data.size(); i++)
 	{
 		double deg = ROSAng(data[i].degree);
 

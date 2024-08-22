@@ -14,8 +14,8 @@ void *HeartThreadProc(void*p);
 
 bool heart_motor(const std::shared_ptr<base::srv::Control::Request> req, std::shared_ptr<base::srv::Control::Response> res)
 {
-    (void)res;
-    DEBUG("HeartCheck change status:%ld\n:", req->flag);
+    UNUSED(res);
+    DEBUG("HeartCheck change status:%d\n:", req->flag);
     if(req->flag==g_isrun)
         return true;
     else
@@ -108,6 +108,7 @@ void  HeartMsg(char *buf_data, int buf_len)
 
 void *HeartThreadProc(void*p)
 {
+    UNUSED(p);
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     int yes = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&yes, sizeof(yes)) < 0)

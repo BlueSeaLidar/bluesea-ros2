@@ -1,32 +1,32 @@
-# 蓝海光电ROS驱动程序（bluesea2_ros_driver） #
+# 蓝海光电ROS2驱动程序(bluesea2_ros2_driver)
 
 ## 概述
 ----------
-蓝海光电ROS驱动程序是专门用于连接本公司生产的lidar产品。该驱动程序可以在安装了 ROS 环境的操作系统中运行，主要支持ubuntu系列操作系统（14.04LTS-20.04LTS）。经测试可以运行该ROS驱动程序的硬件平台包括：intel x86 主流 cpu 平台，部分 ARM64 硬件平台（如 英伟达、瑞芯微，树莓派等，可能需要更新cp210x驱动）。
+蓝海光电ROS2驱动程序是专门用于连接本公司生产的lidar产品。该驱动程序可以在安装了 ROS2 环境的操作系统中运行，主要支持ubuntu系列操作系统（18.04LTS-最新）。经测试可以运行该ROS驱动程序的硬件平台包括：intel x86 主流 cpu 平台，部分 ARM64 硬件平台（如 英伟达、瑞芯微，树莓派等，可能需要更新cp210x驱动）。
 
 ## 注意事项
 请保证路径中不带中文字符，否则会编译失败
 
 ## 获取并构建蓝海ROS驱动包
-1.从Github获取蓝海ROS驱动程序,并部署对应位置
+1.从Github获取蓝海ROS2驱动程序,并部署对应位置
 
     mkdir bluesea2   											//创建一个文件夹，自定义即可
     cd bluesea2    												//进入该文件夹   
-    git clone https://github.com/BlueSeaLidar/bluesea2.git  src //下载驱动包并且重命名为src
+    git clone https://github.com/BlueSeaLidar/bluesea-ros2.git  src //下载驱动包并且重命名为src
 
 2.构建
 
-    catkin_make
-3.更新当前ROS包环境
+    colcon build
+3.更新当前ROS2包环境
 
-    source ./devel/setup.sh
+    source ./install/setup.sh
 
 
-4.使用ROS launch运行驱动
+4.使用ROS2 launch运行驱动
 
 	sudo chmod 777 /dev/ttyUSB0 (非网络款)			//这里的/dev/ttyUSB0指的是串口名称，如果是串口/虚拟串口款，需要赋权
     
-    roslaunch bluesea2 [launch file]    			//具体launch文件说明如下
+    ros2 launch bluesea2 [launch file]    			//具体launch文件说明如下
 
 ## 驱动包launch配置文件说明
 说明：[launch file]指的是src/launch文件夹下的配置文件，以功能类别区分
@@ -41,7 +41,7 @@
 - 
 主要参数配置说明：
 
-    #ROS#（框架必须的参数）
+    #ROS2#（框架必须的参数）
     <param name="scan_topic" value="scan"/>#发布scan话题
     <param name="cloud_topic" value="scan" />#发布cloud话题
     <param name="frame_id" value="map" />#标志坐标系的名称
@@ -114,12 +114,12 @@
 
 ## rosbag包操作说明
 
-	rostopic list    获取话题列表，驱动默认的话题名称为 /lidar1/scan
-	rosbag record  /lidar1/scan   开始录制数据
+	ros2 topic list    获取话题列表，驱动默认的话题名称为 /lidar1/scan
+	ros2 bag record  /lidar1/scan   开始录制数据
 
 录制好的文件以时间戳来命名，要停止录制，在当前终端CTRL+C 
 
-	rosbag play 数据包名称
+	ros2 bag play 数据包名称
 
 在存放数据包的路径下查看录制的数据包，若提示failed connect master异常，则先ros master后在rosbag play
 

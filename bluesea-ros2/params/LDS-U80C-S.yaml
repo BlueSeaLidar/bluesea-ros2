@@ -9,7 +9,6 @@ bluesea_node:
     raw_bytes: 3
     output_360: true
     output_scan: true
-    output_cloud: false
     output_cloud2: false
     with_angle_filter: false
     min_angle: -1.0

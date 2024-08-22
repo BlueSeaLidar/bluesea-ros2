@@ -8,7 +8,7 @@
 
 int ioctl(int fd, unsigned long request, ...);
 
-int change_baud(int fd, int baud)
+int change_baud(int fd, unsigned int baud)
 {
 	struct termios2 t;
 	if (ioctl(fd, TCGETS2, &t))
@@ -28,7 +28,7 @@ int change_baud(int fd, int baud)
 #if 1
 	if (ioctl(fd, TCGETS2, &t) == 0)
 	{
-		if (abs(t.c_ospeed - baud) <= 20000)
+		if (abs((int)(t.c_ospeed - baud)) <= 20000)
 		{
 			//printf("reported %d\n", t.c_ospeed);
 		}

@@ -146,7 +146,6 @@ void *UdpThreadProc(void *p)
 {
 	UDPInfo *info = (UDPInfo *)p;
 	int fd_udp = info->fd_udp;
-	int error_num = 0;
 	char buf[1024];
 
 	timeval tv;

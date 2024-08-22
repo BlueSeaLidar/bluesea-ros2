@@ -22,10 +22,9 @@ void SetTimeStamp(RawData *);
 int mkpathAll(std::string s, mode_t mode);
 unsigned int stm32crc(unsigned int *ptr, unsigned int len);
 int alarmProc(unsigned char *buf, int len);
-int autoGetFirstAngle(RawData raw, bool from_zero, std::vector<RawData> &raws,std::string &result);
+//int autoGetFirstAngle(RawData raw, bool from_zero, std::vector<RawData> &raws,std::string &result);
 
 std::string stringfilter(char *str, int num);
-int autoGetFirstAngle(RawData raw, bool from_zero, std::vector<RawData> &raws,std::string &result);
 int getFirstidx(RawData raw, int angle);
 void timestampMode(int type);
 

@@ -3,9 +3,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/time_source.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
-#include "sensor_msgs/msg/point_cloud.hpp"
+//#include "sensor_msgs/msg/point_cloud.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
-#include "sensor_msgs/point_cloud_conversion.hpp"
+//#include "sensor_msgs/point_cloud_conversion.hpp"
 #include "base/srv/control.hpp"
 #include <sys/time.h>
 #include "../sdk/include/bluesea.h"
@@ -25,7 +25,7 @@ void PublishLaserScanFan(rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedP
 	msg.time_increment = scan_time / fan->N;
 
 	msg.range_min = min_dist;
-	msg.range_max = max_dist; // 8.0;
+	msg.range_max = max_dist;  // 8.0;
 	msg.intensities.resize(N); // fan->N);
 	msg.ranges.resize(N);	   // fan->N);
 
@@ -257,20 +257,24 @@ bool GetFan(HPublish pub, bool with_resample, double resample_res, RawData **fan
 	return got;
 }
 
+struct CloutPointData
+{
+	float x;
+	float y;
+	float z;
+	uint8_t c;
+};
 
 
-
-void PublishCloud(rclcpp::Publisher<sensor_msgs::msg::PointCloud>::SharedPtr  cloud_pub,
-rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr  cloud_pub2, 
-HPublish pub, ArgData argdata, uint8_t counterclockwise)
+void PublishCloud(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_pub2,HPublish pub, ArgData argdata, uint8_t counterclockwise)
 {
 	PubHub *hub = (PubHub *)pub;
-	sensor_msgs::msg::PointCloud msg; 
+	sensor_msgs::msg::PointCloud2 msg;
 	int N = hub->consume.size();
 	msg.header.stamp.sec = hub->ts_beg[0];
 	msg.header.stamp.nanosec = hub->ts_beg[1];
 
-	msg.header.frame_id = argdata.frame_id; 
+	msg.header.frame_id = argdata.frame_id;
 
 	double min_deg = argdata.min_angle * 180 / M_PI;
 	double max_deg = argdata.max_angle * 180 / M_PI;
@@ -280,14 +284,37 @@ HPublish pub, ArgData argdata, uint8_t counterclockwise)
 		double min_pos, max_pos;
 		N = m_driver->GetCount(hub->consume, min_deg, max_deg, min_pos, max_pos);
 	}
-	msg.points.resize(N);
-	msg.channels.resize(1);
 
-	msg.channels[0].name = "intensities";
-	msg.channels[0].values.resize(N);
+	msg.height = 1;
+	msg.width = N;
+	msg.fields.resize(4);
 
+	msg.fields[0].name = "x";
+	msg.fields[0].offset = 0;
+	msg.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
+	msg.fields[0].count = 1;
+
+	msg.fields[1].name = "y";
+	msg.fields[1].offset = 4; // 假设float是4字节
+	msg.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
+	msg.fields[1].count = 1;
+
+	msg.fields[2].name = "z";
+	msg.fields[2].offset = 8;
+	msg.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
+	msg.fields[2].count = 1;
+
+	msg.fields[3].name = "intensity";
+	msg.fields[3].offset = 12;
+	msg.fields[3].datatype = sensor_msgs::msg::PointField::INT32;
+	msg.fields[3].count = 1;
+
+	msg.is_bigendian = false;  
+    msg.point_step = 16; // 3个float * 4字节/float  
+    msg.row_step = msg.point_step * msg.width;  
+    msg.data.resize(msg.row_step); 
 	int idx = 0;
-
+	
 	if (argdata.reversed + counterclockwise != 1)
 	{
 		for (int i = hub->consume.size() - 1; i >= 0; i--)
@@ -307,24 +334,28 @@ HPublish pub, ArgData argdata, uint8_t counterclockwise)
 				if (argdata.with_angle_filter && argdata.masks[k].min <= deg && deg <= argdata.masks[k].max)
 					custom = true;
 			}
-
+			CloutPointData cpdata;
 			if (hub->consume[i].distance == 0 || d > argdata.max_dist || d < argdata.min_dist || custom)
 			{
-				msg.points[idx].x = std::numeric_limits<float>::infinity();
-				msg.points[idx].y = std::numeric_limits<float>::infinity();
-				msg.points[idx].z = std::numeric_limits<float>::infinity();
-				msg.channels[0].values[idx] = std::numeric_limits<uint16_t>::infinity();
-				idx++;
+			
+				cpdata.x =std::numeric_limits<float>::infinity();;
+				cpdata.y = std::numeric_limits<float>::infinity();;
+				cpdata.z = std::numeric_limits<float>::infinity();;
+				cpdata.c= std::numeric_limits<uint8_t>::infinity();;	
+				
 			}
 			else
 			{
 				float a = hub->consume[i].degree * M_PI / 180.0;
-				msg.points[idx].x = cos(a) * d;
-				msg.points[idx].y = sin(a) * d*-1;
-				msg.points[idx].z = 0;
-				msg.channels[0].values[idx] = hub->consume[i].confidence;
-				idx++;
+				cpdata.x = cos(a) * d;
+				cpdata.y = sin(a) * d * -1;
+				cpdata.z = 0;
+				cpdata.c= hub->consume[i].confidence;	
 			}
+			memcpy(&msg.data[i * msg.point_step], &cpdata, msg.point_step);
+			//DEBUG("%d %ld",msg.point_step,sizeof(CloutPointData));
+			idx++;
+
 		}
 	}
 	else
@@ -350,41 +381,34 @@ HPublish pub, ArgData argdata, uint8_t counterclockwise)
 					custom = true;
 			}
 
+			CloutPointData cpdata;
 			if (hub->consume[i].distance == 0 || d > argdata.max_dist || d < argdata.min_dist || custom)
 			{
-				msg.points[idx].x = std::numeric_limits<float>::infinity();
-				msg.points[idx].y = std::numeric_limits<float>::infinity();
-				msg.points[idx].z = std::numeric_limits<float>::infinity();
-				msg.channels[0].values[idx] = std::numeric_limits<uint16_t>::infinity();
-				idx++;
+			
+				cpdata.x =std::numeric_limits<float>::infinity();;
+				cpdata.y = std::numeric_limits<float>::infinity();;
+				cpdata.z = std::numeric_limits<float>::infinity();;
+				cpdata.c= std::numeric_limits<uint8_t>::infinity();;	
+				
 			}
 			else
 			{
 				float a = hub->consume[i].degree * M_PI / 180.0;
-				msg.points[idx].x = cos(a) * d;
-				msg.points[idx].y = sin(a) * d;
-				msg.points[idx].z = 0;
-				msg.channels[0].values[idx] = hub->consume[i].confidence;
-				idx++;
+				cpdata.x = cos(a) * d;
+				cpdata.y = sin(a) * d ;
+				cpdata.z = 0;
+				cpdata.c= hub->consume[i].confidence;	
 			}
+			memcpy(&msg.data[i * msg.point_step], &cpdata, msg.point_step);
+			//DEBUG("%d %ld",msg.point_step,sizeof(CloutPointData));
+			idx++;
 		}
 	}
-	if(argdata.output_cloud2)
-	{
-		sensor_msgs::msg::PointCloud2 laserCloudMsg; 
-    	sensor_msgs::convertPointCloudToPointCloud2(msg, laserCloudMsg);
-		cloud_pub2->publish(laserCloudMsg);
-	}
-	else
-	{
-		cloud_pub->publish(msg);
-	}
+	cloud_pub2->publish(msg);
 }
 
-
-
 // service call back function
-bool control_motor(const std::shared_ptr<base::srv::Control::Request>req, std::shared_ptr<base::srv::Control::Response>res)
+bool control_motor(const std::shared_ptr<base::srv::Control::Request> req, std::shared_ptr<base::srv::Control::Response> res)
 {
 	std::string cmd;
 	unsigned short proto = 0x0043;
@@ -436,12 +460,6 @@ bool control_motor(const std::shared_ptr<base::srv::Control::Request>req, std::s
 
 	return true;
 }
-
-
-
-
-
-
 
 #define READ_PARAM(TYPE, NAME, VAR, INIT)     \
 	VAR = INIT;                               \
@@ -540,11 +558,11 @@ bool ProfileInit(std::shared_ptr<rclcpp::Node> node, ArgData &argdata)
 	READ_PARAM(bool, "inverted", argdata.inverted, false);
 	READ_PARAM(bool, "reversed", argdata.reversed, false);
 	// data output
-	READ_PARAM(bool, "output_scan", argdata.output_scan, true);	   // true: enable output angle+distance mode, 0: disable
-	READ_PARAM(bool, "output_cloud", argdata.output_cloud, false); // false: enable output xyz format, 0 : disable
+	READ_PARAM(bool, "output_scan", argdata.output_scan, true);		 // true: enable output angle+distance mode, 0: disable
+	READ_PARAM(bool, "output_cloud", argdata.output_cloud, false);	 // false: enable output xyz format, 0 : disable
 	READ_PARAM(bool, "output_cloud2", argdata.output_cloud2, false); // false: enable output xyz format, 0 : disable
-	READ_PARAM(bool, "output_360", argdata.output_360, true);	   // true: packet data of 360 degree (multiple RawData), publish once
-																   // false: publish every RawData (36 degree)
+	READ_PARAM(bool, "output_360", argdata.output_360, true);		 // true: packet data of 360 degree (multiple RawData), publish once
+																	 // false: publish every RawData (36 degree)
 	//  angle filter
 	READ_PARAM(bool, "with_angle_filter", argdata.with_angle_filter, false); // true: enable angle filter, false: disable
 	READ_PARAM(double, "min_angle", argdata.min_angle, -M_PI);				 // angle filter's low threshold, default value: -pi
@@ -622,17 +640,12 @@ int main(int argc, char *argv[])
 	m_driver->openLidarThread();
 
 	rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr laser_pubs[MAX_LIDARS];
-	rclcpp::Publisher<sensor_msgs::msg::PointCloud>::SharedPtr cloud_pubs[MAX_LIDARS];
 	rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_pubs2[MAX_LIDARS];
-
-	
 
 	for (int i = 0; i < argdata.num; i++)
 	{
 		if (argdata.output_scan)
 			laser_pubs[i] = node->create_publisher<sensor_msgs::msg::LaserScan>(argdata.connectargs[i].scan_topics, qos);
-		if (argdata.output_cloud)
-			cloud_pubs[i] = node->create_publisher<sensor_msgs::msg::PointCloud>(argdata.connectargs[i].cloud_topics, qos);
 		if (argdata.output_cloud2)
 			cloud_pubs2[i] = node->create_publisher<sensor_msgs::msg::PointCloud2>(argdata.connectargs[i].cloud_topics, qos);
 	}
@@ -646,7 +659,7 @@ int main(int argc, char *argv[])
 			std::string serviceName = argdata.connectargs[i].scan_topics + "_motor";
 			control_srv[i] = node->create_service<base::srv::Control>(serviceName, control_motor);
 		}
-		else if (argdata.output_cloud||argdata.output_cloud2)
+		if (argdata.output_cloud2)
 		{
 			std::string serviceName = argdata.connectargs[i].cloud_topics + "_motor";
 			control_srv[i] = node->create_service<base::srv::Control>(serviceName, control_motor);
@@ -694,9 +707,9 @@ int main(int argc, char *argv[])
 					{
 						PublishLaserScan(laser_pubs[i], hub, argdata, counterclockwise);
 					}
-					if (argdata.output_cloud||argdata.output_cloud2)
+					if (argdata.output_cloud2)
 					{
-						PublishCloud(cloud_pubs[i],cloud_pubs2[i], hub, argdata,counterclockwise);
+						PublishCloud(cloud_pubs2[i], hub, argdata, counterclockwise);
 					}
 				}
 				hub->consume.clear();
