@@ -279,11 +279,11 @@ void PublishCloud(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cl
 	double min_deg = argdata.min_angle * 180 / M_PI;
 	double max_deg = argdata.max_angle * 180 / M_PI;
 
-	if (argdata.with_angle_filter)
-	{
-		double min_pos, max_pos;
-		N = m_driver->GetCount(hub->consume, min_deg, max_deg, min_pos, max_pos);
-	}
+	// if (argdata.with_angle_filter)
+	// {
+	// 	double min_pos, max_pos;
+	// 	N = m_driver->GetCount(hub->consume, min_deg, max_deg, min_pos, max_pos);
+	// }
 
 	msg.height = 1;
 	msg.width = N;
