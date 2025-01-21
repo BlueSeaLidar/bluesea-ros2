@@ -451,6 +451,7 @@ bool control_motor(const std::shared_ptr<base::srv::Control::Request> req, std::
 		res->value = "unknown cmd";
 		return true;
 	}
+
 	DEBUG("action:%s  cmd:%s  proto:%u", req->func.c_str(), cmd.c_str(), proto);
 	res->code = m_driver->sendCmd(req->topic, cmd, proto);
 	if (res->code <= 0)
@@ -617,6 +618,12 @@ bool ProfileInit(std::shared_ptr<rclcpp::Node> node, ArgData &argdata)
 	READ_PARAM(int, "with_confidence", argdata.with_confidence, -1);
 	READ_PARAM(int, "ats", argdata.ats, -1);
 	/*****************************SET arg end************************************/
+
+	READ_PARAM(std::string, "ntp_ip", argdata.ntp_ip, "192.168.158.50"); // 0 : distance is CM, 1: MM
+	READ_PARAM(int, "ntp_port", argdata.ntp_port, 5678);
+	READ_PARAM(int, "ntp_enable", argdata.ntp_enable, -1);
+
+
 	return true;
 }
 

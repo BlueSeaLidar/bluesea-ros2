@@ -311,10 +311,12 @@ static RawData *PackFanData(FanSegment_AA *seg)
 		SetTimeStamp(dat);
 	else
 	{
-		dat->ts[0] = seg->hdr.second;
+		if(seg->hdr.second>2208988800U)
+			dat->ts[0] = seg->hdr.second-2208988800U;
+		else
+			dat->ts[0] = seg->hdr.second;
 		dat->ts[1] = seg->hdr.nano_sec / 1000;
 	}
-
 	int count = 0;
 	while (seg)
 	{

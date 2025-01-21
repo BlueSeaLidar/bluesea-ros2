@@ -1,18 +1,17 @@
 #include "../include/bluesea.h"
 BlueSeaLidarDriver::BlueSeaLidarDriver()
 {
-	m_reader=NULL;
-	m_counterclockwise=false;
-	memset(&m_cmdlist,0,sizeof(CommandList));
+	m_reader = NULL;
+	m_counterclockwise = false;
+	memset(&m_cmdlist, 0, sizeof(CommandList));
 }
 
 BlueSeaLidarDriver::~BlueSeaLidarDriver()
 {
-	
 }
 void BlueSeaLidarDriver::getInitCmds(ArgData &argdata)
 {
-	m_argdata =argdata;
+	m_argdata = argdata;
 	if (argdata.uuid >= 0)
 		sprintf(m_cmdlist.uuid, "LUUIDH");
 	if (argdata.model >= 0)
@@ -45,9 +44,9 @@ void BlueSeaLidarDriver::getInitCmds(ArgData &argdata)
 		sprintf(m_cmdlist.alarm, "LSPST:%dH", argdata.alarm_msg ? 3 : 1);
 	if (argdata.direction >= 0)
 	{
-		if(argdata.type=="uart")
+		if (argdata.type == "uart")
 			sprintf(m_cmdlist.direction, "LSMCCW:%dH", !(argdata.direction));
-		else if(argdata.type=="vpc"||argdata.type=="udp")
+		else if (argdata.type == "vpc" || argdata.type == "udp")
 			sprintf(m_cmdlist.direction, "LSCCW:%dH", argdata.direction);
 	}
 	if (argdata.unit_is_mm >= 0)
@@ -62,13 +61,52 @@ void BlueSeaLidarDriver::getInitCmds(ArgData &argdata)
 		else if (argdata.type == "udp")
 			sprintf(m_cmdlist.ats, "LSATS:001H");
 	}
+	if (argdata.ntp_enable >= 0)
+	{
+		if (argdata.type == "udp")
+		{
+			bool ret = judgepcIPAddrIsValid(argdata.ntp_ip.data());
+			if (!ret)
+			{
+				ERROR((int)NTP_IP_FORMAT_ERROR, Error::GetErrorString(NTP_IP_FORMAT_ERROR).c_str());
+				return;
+			}
+			char ip_1[4];
+			char ip_2[4];
+			char ip_3[4];
+			char ip_4[4];
+			ip_1[3] = '\0';
+			ip_2[3] = '\0';
+			ip_3[3] = '\0';
+			ip_4[3] = '\0';
+
+			int idx[3];
+			int index = 0;
+			int ip_len = argdata.ntp_ip.size();
+			const char *ntp_ip = argdata.ntp_ip.data();
+			for (int i = 0; i < ip_len; i++)
+			{
+				if (ntp_ip[i] == '.')
+				{
+					idx[index] = i;
+					index++;
+				}
+			}
+
+			memcpy(ip_1, &ntp_ip[0], idx[0]);
+			memcpy(ip_2, &ntp_ip[idx[0] + 1], idx[1] - idx[0] - 1);
+			memcpy(ip_3, &ntp_ip[idx[1] + 1], idx[2] - idx[1] - 1);
+			memcpy(ip_4, &ntp_ip[idx[2] + 1], ip_len - idx[2]);
+			sprintf(m_cmdlist.ntp, "LSNTP:%d,%03d.%03d.%03d.%03d,%05dH", argdata.ntp_enable, atoi(ip_1), atoi(ip_2), atoi(ip_3), atoi(ip_4), argdata.ntp_port);
+		}
+	}
 }
 
 void BlueSeaLidarDriver::openLidarThread()
 {
 	for (int i = 0; i < m_argdata.num; i++)
 	{
-		m_parsers[i] = ParserOpen(m_argdata.raw_bytes, true, m_argdata.dev_id, m_argdata.custom.error_circle, m_argdata.custom.error_scale, m_argdata.from_zero, m_argdata.time_mode,m_cmdlist, (char *)m_argdata.connectargs[i].arg1.c_str(), m_argdata.connectargs[i].arg2);
+		m_parsers[i] = ParserOpen(m_argdata.raw_bytes, true, m_argdata.dev_id, m_argdata.custom.error_circle, m_argdata.custom.error_scale, m_argdata.from_zero, m_argdata.time_mode, m_cmdlist, (char *)m_argdata.connectargs[i].arg1.c_str(), m_argdata.connectargs[i].arg2);
 		m_hubs[i] = new PubHub;
 		m_hubs[i]->nfan = 0;
 		m_hubs[i]->offsetangle = -1;
@@ -88,13 +126,13 @@ void BlueSeaLidarDriver::openLidarThread()
 			strcpy(lidars[i].lidar_ip, m_argdata.connectargs[i].arg1.c_str());
 			lidars[i].lidar_port = m_argdata.connectargs[i].arg2;
 
-			uint32_t flags=0;
-			if(m_argdata.unit_is_mm)
-				setbit(flags,DF_UNIT_IS_MM);
-			if(m_argdata.with_confidence)
-				setbit(flags,DF_WITH_INTENSITY);
+			uint32_t flags = 0;
+			if (m_argdata.unit_is_mm)
+				setbit(flags, DF_UNIT_IS_MM);
+			if (m_argdata.with_confidence)
+				setbit(flags, DF_WITH_INTENSITY);
 
-			lidars[i].parser->flags=flags;
+			lidars[i].parser->flags = flags;
 		}
 		m_reader = StartUDPReader(m_argdata.type.c_str(), m_argdata.localport, m_argdata.custom.is_group_listener, m_argdata.custom.group_ip.c_str(), m_argdata.num, lidars);
 	}
@@ -104,36 +142,35 @@ void BlueSeaLidarDriver::openLidarThread()
 	}
 }
 
-bool BlueSeaLidarDriver::sendCmd(std::string topic,std::string cmd,int proto)
+bool BlueSeaLidarDriver::sendCmd(std::string topic, std::string cmd, int proto)
 {
-	int idx=-1;
-	for(unsigned int i=0;i<m_argdata.connectargs.size();i++)
+	int idx = -1;
+	for (unsigned int i = 0; i < m_argdata.connectargs.size(); i++)
 	{
-		if(topic == m_argdata.connectargs[i].cloud_topics ||topic == m_argdata.connectargs[i].scan_topics)
+		if (topic == m_argdata.connectargs[i].cloud_topics || topic == m_argdata.connectargs[i].scan_topics)
 		{
-			idx=i;
+			idx = i;
 		}
 	}
-	if(idx<0)
+	if (idx < 0)
 	{
-		ERROR((int)TOPIC_NO_FIND,Error::GetErrorString(TOPIC_NO_FIND).c_str());
+		ERROR((int)TOPIC_NO_FIND, Error::GetErrorString(TOPIC_NO_FIND).c_str());
 		return false;
 	}
-	std::string arg1 = 	m_argdata.connectargs[idx].arg1;
-	int arg2 = 	m_argdata.connectargs[idx].arg2;
-
+	std::string arg1 = m_argdata.connectargs[idx].arg1;
+	int arg2 = m_argdata.connectargs[idx].arg2;
 
 	if (m_argdata.type == "uart")
 	{
-		return SendUartCmd(m_reader, cmd.size(), (char*)cmd.c_str());
+		return SendUartCmd(m_reader, cmd.size(), (char *)cmd.c_str());
 	}
 	else if (m_argdata.type == "vpc")
 	{
-		return SendVpcCmd(m_reader, cmd.size(), (char*)cmd.c_str());
+		return SendVpcCmd(m_reader, cmd.size(), (char *)cmd.c_str());
 	}
 	else if (m_argdata.type == "udp")
 	{
-		return SendUdpCmd(m_reader, arg1,arg2,cmd,proto);
+		return SendUdpCmd(m_reader, arg1, arg2, cmd, proto);
 	}
 	// else if (m_argdata.type == "tcp")
 	// {
@@ -142,13 +179,11 @@ bool BlueSeaLidarDriver::sendCmd(std::string topic,std::string cmd,int proto)
 	return false;
 }
 
-
-
-PubHub*BlueSeaLidarDriver::getHub(int i)
+PubHub *BlueSeaLidarDriver::getHub(int i)
 {
 	return m_hubs[i];
 }
-Parser*BlueSeaLidarDriver::getParser(int i)
+Parser *BlueSeaLidarDriver::getParser(int i)
 {
 	return m_parsers[i];
 }
@@ -163,15 +198,15 @@ bool BlueSeaLidarDriver::checkIsRun(int index)
 		{
 			hub->offsetangle = hub->fans[i]->angle;
 			hub->offsetidx = idx;
-			m_parsers[index]->isrun=true;
-			DEBUG("lidar start work,offset angle %d offset idx %d raw_bytes:%d\n", hub->offsetangle/10, hub->offsetidx,m_parsers[index]->raw_mode);
+			m_parsers[index]->isrun = true;
+			DEBUG("lidar start work,offset angle %d offset idx %d raw_bytes:%d\n", hub->offsetangle / 10, hub->offsetidx, m_parsers[index]->raw_mode);
 			return true;
 		}
 	}
 	return false;
 }
 
-int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counterclockwise)
+int BlueSeaLidarDriver::GetAllFans(PubHub *pub, ArgData argdata, int8_t &counterclockwise)
 {
 	PubHub *hub = (PubHub *)pub;
 	RawData *fans[MAX_FANS];
@@ -181,7 +216,7 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 	int cnt = 0, nfan = 0;
 	for (int i = 1; i < hub->nfan; i++)
 	{
-		//DEBUG("%d %d",hub->fans[i]->angle,hub->offsetangle);
+		// DEBUG("%d %d",hub->fans[i]->angle,hub->offsetangle);
 		if (hub->fans[i]->angle == hub->offsetangle)
 		{
 			hub->ts_end[0] = hub->fans[i]->ts[0];
@@ -222,13 +257,13 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 	if (cnt > 0)
 	{
 		counterclockwise = fans[0]->counterclockwise;
-		//如果是-1，则根据类型来区分，串口款都是逆时针，网络和虚拟串口默认为顺时针
-		if(counterclockwise==-1)
+		// 如果是-1，则根据类型来区分，串口款都是逆时针，网络和虚拟串口默认为顺时针
+		if (counterclockwise == -1)
 		{
 			if (argdata.type == "vpc" || argdata.type == "udp")
-				counterclockwise=0;
+				counterclockwise = 0;
 			else if (argdata.type == "uart")
-				counterclockwise=1;
+				counterclockwise = 1;
 		}
 		bool circle = true;
 		int total = fans[0]->span;
@@ -243,7 +278,7 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 			}
 			total += fans[i + 1]->span;
 		}
-		//DEBUG("%d  %d %d \n", circle,total,hub->offsetidx);
+		// DEBUG("%d  %d %d \n", circle,total,hub->offsetidx);
 		if (!circle || (total != 3600 && hub->offsetidx == 0) || ((total != 3600 + fans[0]->span) && hub->offsetidx > 0))
 		{
 			// clean imcomplent datas
@@ -266,8 +301,8 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 				}
 				else if (NN > fans[i]->N)
 				{
-					//DEBUG("fan [%d] %d less than %d\n", i, fans[i]->N, NN);
-					ERROR((int)SAMPLE_TOO_SMALL,Error::GetErrorString(SAMPLE_TOO_SMALL).c_str());
+					// DEBUG("fan [%d] %d less than %d\n", i, fans[i]->N, NN);
+					ERROR((int)SAMPLE_TOO_SMALL, Error::GetErrorString(SAMPLE_TOO_SMALL).c_str());
 				}
 			}
 		}
@@ -301,8 +336,8 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 				hub->error_num++;
 				if (hub->error_num >= argdata.custom.error_circle)
 				{
-					//DEBUG("There are many points with a distance of 0 in the current lidar operation");
-					ERROR((int)DISTANCE_ZERO_LARGE,Error::GetErrorString(DISTANCE_ZERO_LARGE).c_str());
+					// DEBUG("There are many points with a distance of 0 in the current lidar operation");
+					ERROR((int)DISTANCE_ZERO_LARGE, Error::GetErrorString(DISTANCE_ZERO_LARGE).c_str());
 					hub->error_num = 0;
 				}
 			}
@@ -312,15 +347,15 @@ int BlueSeaLidarDriver::GetAllFans(PubHub* pub, ArgData argdata, int8_t &counter
 		double angle_increment = M_PI * 2 / N;
 		Fitter *fitter = &argdata.fitter;
 		if (fitter->isopen)
-			filter(hub->consume,fitter->max_range*1000, fitter->min_range*1000, fitter->max_range_difference*1000, fitter->filter_window, angle_increment);
-	
-		counterclockwise=true;
-		m_counterclockwise=counterclockwise;
-		//DEBUG("%d",m_counterclockwise);
+			filter(hub->consume, fitter->max_range * 1000, fitter->min_range * 1000, fitter->max_range_difference * 1000, fitter->filter_window, angle_increment);
+
+		counterclockwise = true;
+		m_counterclockwise = counterclockwise;
+		// DEBUG("%d",m_counterclockwise);
 	}
 	return cnt;
 }
-bool BlueSeaLidarDriver::GetFan(PubHub* pub, bool with_resample, double resample_res, RawData **fans)
+bool BlueSeaLidarDriver::GetFan(PubHub *pub, bool with_resample, double resample_res, RawData **fans)
 {
 	bool got = false;
 	PubHub *hub = (PubHub *)pub;
@@ -347,22 +382,21 @@ bool BlueSeaLidarDriver::GetFan(PubHub* pub, bool with_resample, double resample
 		}
 		else if (NN > fans[0]->N)
 		{
-			//DEBUG("fan %d less than %d\n", fans[0]->N, NN);
-			ERROR((int)SAMPLE_TOO_SMALL,Error::GetErrorString(SAMPLE_TOO_SMALL).c_str());
-
+			// DEBUG("fan %d less than %d\n", fans[0]->N, NN);
+			ERROR((int)SAMPLE_TOO_SMALL, Error::GetErrorString(SAMPLE_TOO_SMALL).c_str());
 		}
 	}
 	return got;
 }
 double BlueSeaLidarDriver::ROSAng(double ang)
 {
-	if(m_counterclockwise+m_argdata.reversed!=1)
+	if (m_counterclockwise + m_argdata.reversed != 1)
 	{
-		return ang>180 ? 360-ang : -ang;
+		return ang > 180 ? 360 - ang : -ang;
 	}
 	else
 	{
-		return ang>180 ? ang-360 :ang;
+		return ang > 180 ? ang - 360 : ang;
 	}
 }
 
@@ -391,6 +425,63 @@ int BlueSeaLidarDriver::GetCount(std::vector<DataPoint> data, double min_deg, do
 		N++;
 	}
 
-	//printf("angle filter [%f, %f] %d to %d, [%f, %f]\n", min_deg, max_deg, 1, N, min_pos, max_pos);
+	// printf("angle filter [%f, %f] %d to %d, [%f, %f]\n", min_deg, max_deg, 1, N, min_pos, max_pos);
 	return N;
+}
+
+bool judgepcIPAddrIsValid(const char *pcIPAddr)
+{
+	int iDots = 0;	  /* 字符.的个数 */
+	int iSetions = 0; /* pcIPAddr 每一部分总和（0-255）*/
+
+	if (NULL == pcIPAddr || *pcIPAddr == '.')
+	{ /*排除输入参数为NULL, 或者一个字符为'.'的字符串*/
+		return false;
+	}
+
+	/* 循环取每个字符进行处理 */
+	while (*pcIPAddr)
+	{
+		if (*pcIPAddr == '.')
+		{
+			iDots++;
+			/* 检查 pcIPAddr 是否合法 */
+			if (iSetions >= 0 && iSetions <= 255)
+			{
+				iSetions = 0;
+				pcIPAddr++;
+				continue;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else if (*pcIPAddr >= '0' && *pcIPAddr <= '9') /*判断是不是数字*/
+		{
+			iSetions = iSetions * 10 + (*pcIPAddr - '0'); /*求每一段总和*/
+		}
+		else
+		{
+			return false;
+		}
+		pcIPAddr++;
+	}
+
+	/* 判断最后一段是否有值 如：1.1.1. */
+	if ((*pcIPAddr == '\0') && (*(pcIPAddr - 1) == '.'))
+	{
+		return false;
+	}
+
+	/* 判断最后一段是否合法 */
+	if (iSetions >= 0 && iSetions <= 255)
+	{
+		if (iDots == 3)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }

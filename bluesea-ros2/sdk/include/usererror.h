@@ -69,7 +69,7 @@ static Error DISTANCE_ZERO_LARGE(-113,"Points with a distance of zero scale beyo
 static Error DEVICE_OFFLINE(-114,"Serial device list does not exist, please check the device connection");
 static Error CHECKSUM_ERR(-115,"Sector data calibration error, please check whether the data line is in accordance with the specification");
 static Error TOPIC_NO_FIND(-116,"Find a topic that does not exist");
-
+static Error NTP_IP_FORMAT_ERROR(-117,"ntp ip format set error");
 
 
 

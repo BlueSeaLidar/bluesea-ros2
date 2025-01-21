@@ -541,6 +541,21 @@ bool setup_lidar_udp(int handle,Parser* hP,EEpromV101 &param)
 	}
 	for (unsigned int i = 0; i < index; i++)
 	{
+		cmdLength = strlen(parser->cmd.ntp);
+		if (cmdLength <= 0)
+			break;
+		if (udp_talk_S_PACK(handle, parser->ip, parser->port, cmdLength, parser->cmd.ntp, result))
+		{
+			DEBUG("set ntp %s", result);
+			if(result[0]=='O'&&result[1]=='K')
+				timestampMode(1);
+				
+
+			break;
+		}
+	}
+	for (unsigned int i = 0; i < index; i++)
+	{
 		if (udp_talk_GS_PACK(handle, parser->ip, parser->port, 6, "xxxxxx",&param))
 		{
 			break;

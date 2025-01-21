@@ -5,7 +5,7 @@
 #include"usererror.h"
 
 
-#define BLUESEA2_VERSION "2.5"
+#define BLUESEA2_VERSION "2.6"
 
 class BlueSeaLidarDriver
 {
@@ -39,3 +39,4 @@ private:
     ArgData m_argdata;
     int m_counterclockwise;
 };
+bool judgepcIPAddrIsValid(const char *pcIPAddr);

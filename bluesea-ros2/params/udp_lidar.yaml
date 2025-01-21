@@ -40,3 +40,7 @@ bluesea_node:
     rpm: -1
     direction:  -1
     ats: -1
+  #NTP
+    ntp_ip: "192.168.158.50"
+    ntp_port: 5678
+    ntp_enable: 1

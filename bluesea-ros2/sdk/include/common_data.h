@@ -247,6 +247,7 @@ struct CommandList
 	char alarm[12];
 	char direction[12];
 	char ats[12];
+	char ntp[64];
 
 
 };
@@ -445,6 +446,11 @@ struct ArgData
 	int with_confidence;
 	int ats;
 	int time_mode;
+	std::string ntp_ip;
+	int ntp_port;
+	int ntp_enable;
+
+
 	Fitter fitter;
 	Custom custom;
 
