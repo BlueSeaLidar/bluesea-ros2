@@ -1,4 +1,4 @@
-# 蓝海光电ROS2驱动程序(bluesea2_ros2_driver)
+# 蓝海光电ROS2驱动程序V2.6(bluesea2_ros2_driver)
 
 ## 概述
 ----------
@@ -88,7 +88,10 @@
     <param name="with_deshadow" value="-1" />#设置滤波,-1不设置 0关闭 1打开
     <param name="alarm_msg" value="-1"/>#设置报警信息,-1不设置 0关闭 1打开
     <param name="direction" value="-1"/>#设置旋转方向(仅支持该指令的雷达使用),-1不设置 0关闭 1打开
-
+    #NTP#
+    <param name="ntp_ip" value="192.168.0.111" /># NTP 服务器地址
+    <param name="ntp_port" value="5678" />#NTP 服务器端口
+    <param name="ntp_enable" value="1"/>#使能开关
 ## 驱动客户端功能说明
 源码位于src/client.cpp
 启停旋转：

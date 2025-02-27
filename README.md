@@ -1,4 +1,4 @@
-# BLUESEA ROS2 driver
+# BLUESEA ROS2 driver V2.6
 
 ## Overview 
 ----------
@@ -87,7 +87,10 @@ Main parameter configuration instructions：
     <param name="with_deshadow" value="-1" />#Set filtering, -1 not set 0 off 1 on
     <param name="alarm_msg" value="-1" />#set alarm message, -1 not set 0 off 1 on
     <param name="direction" value="-1"/>#Set direction of rotation(only used by lidar which support this command),-1 not set 0 off 1 on
-
+    #NTP#
+    <param name="ntp_ip" value="192.168.0.111" /># NTP service ip
+    <param name="ntp_port" value="5678" />#NTP service port
+    <param name="ntp_enable" value="1"/># enable or not
 
 ## Driver Client Functional Description
 source code locate at src/client.cpp
