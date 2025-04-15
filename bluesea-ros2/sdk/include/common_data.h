@@ -266,7 +266,7 @@ struct Parser
 	bool is_from_zero;
 	int time_mode;
 	CommandList cmd;
-	char ip[16];
+	char ip[32];
 	int port;
 	bool direction;
 	bool isrun;

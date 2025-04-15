@@ -5,7 +5,7 @@
 #include"usererror.h"
 
 
-#define BLUESEA2_VERSION "2.6"
+#define BLUESEA2_VERSION "2.6.1"
 
 class BlueSeaLidarDriver
 {
