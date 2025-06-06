@@ -5,6 +5,8 @@
 #include<iostream>
 #include<list>
 #include<queue>
+#include <unistd.h>
+#include <fcntl.h>
 #include"common_data.h"
 #include"usererror.h"
 #include"alarm.h"
@@ -38,4 +40,7 @@ void closeSignal(int sig);
 //int GetAllFans(HPublish pub,ArgData argdata,uint8_t &counterclockwise);
 
 void PublishData(PubHub* pub, int n, RawData **fans);
+
+void redirect_stdout_to_log(const char *path) ;
+
 #endif

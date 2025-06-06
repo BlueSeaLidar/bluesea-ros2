@@ -16,20 +16,20 @@
 #include<stdint.h>
 struct LidarMsgHdr
 {
-	char sign[4];  // must be "LMSG"
-	uint32_t proto_version; // 0x101
 	char dev_sn[20];
 	uint32_t dev_id; //
 	uint32_t timestamp;//
 	uint32_t type;
 	uint32_t data;
-	uint16_t id;
-	uint16_t extra;	
 };
 
 struct LidarAlarm
 {
+	char sign[4];  // must be "LMSG"
+	uint32_t proto_version; // 0x101
 	LidarMsgHdr hdr;
+	uint16_t id;
+	uint16_t extra;	
 	uint32_t zone_actived;
 	uint8_t all_states[32];
 	uint32_t reserved[11];

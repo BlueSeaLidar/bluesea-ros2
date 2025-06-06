@@ -58,4 +58,5 @@ bool udp_talk_GS_PACK(int fd_udp, const char *ip, int port, int n, const char *c
 
 //common
 void PublishData(PubHub* pub, int n, RawData **fans);
+
 #endif

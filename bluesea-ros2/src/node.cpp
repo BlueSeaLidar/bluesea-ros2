@@ -623,14 +623,14 @@ bool ProfileInit(std::shared_ptr<rclcpp::Node> node, ArgData &argdata)
 	READ_PARAM(int, "ntp_port", argdata.ntp_port, 5678);
 	READ_PARAM(int, "ntp_enable", argdata.ntp_enable, -1);
 
+	READ_PARAM(bool, "log_enable", argdata.log_enable, false);
+	READ_PARAM(std::string, "log_path", argdata.log_path, "/tmp/ros_log");
 
 	return true;
 }
 
 int main(int argc, char *argv[])
 {
-	DEBUG("ROS2 VERSION:%s\n", BLUESEA2_VERSION);
-
 	rclcpp::init(argc, argv);
 	std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("bluesea_node");
 
@@ -641,7 +641,12 @@ int main(int argc, char *argv[])
 
 	ArgData argdata;
 	ProfileInit(node, argdata);
-
+	if(argdata.log_enable)
+	{
+		DEBUG("Specific information will be saved to the log file:%s\n", argdata.log_path.c_str());
+		redirect_stdout_to_log(argdata.log_path.c_str());
+	}
+	DEBUG("ROS2 VERSION:%s\n", BLUESEA2_VERSION);
 	m_driver = new BlueSeaLidarDriver();
 	m_driver->getInitCmds(argdata);
 	m_driver->openLidarThread();

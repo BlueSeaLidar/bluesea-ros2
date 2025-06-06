@@ -23,6 +23,8 @@ bluesea_node:
     max_dist: 50.0
     error_circle: 3
     error_scale: 0.9
+    log_enable: false
+    log_path: "/tmp/ros2_log.txt"
   #CONNECT#
     type: "udp"
     lidar_ip: "192.168.158.98"

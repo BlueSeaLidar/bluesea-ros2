@@ -1614,3 +1614,15 @@ void SetTimeStamp(RawData *dat)
 	dat->ts[0] = t.tv_sec;
 	dat->ts[1] = t.tv_usec * 1000;
 }
+
+void redirect_stdout_to_log(const char *path) 
+{
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd == -1) {
+        perror("open log file failed");
+        exit(EXIT_FAILURE);
+    }
+    dup2(fd, STDOUT_FILENO);  // 重定向 stdout
+    dup2(fd, STDERR_FILENO);  // 可选：重定向 stderr
+    close(fd);
+}

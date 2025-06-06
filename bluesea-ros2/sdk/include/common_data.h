@@ -290,6 +290,8 @@ struct LidarNode
 	PubHub* hPublish;
 	char ip[16];
 	int port;
+	bool hasdata;
+	uint32_t nodata_count;
 };
 struct UartState
 {
@@ -449,8 +451,8 @@ struct ArgData
 	std::string ntp_ip;
 	int ntp_port;
 	int ntp_enable;
-
-
+	bool log_enable;
+	std::string log_path;
 	Fitter fitter;
 	Custom custom;
 
