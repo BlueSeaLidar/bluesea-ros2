@@ -385,7 +385,7 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 
 		if (seg->hdr.timestamp != fan_seg->hdr.timestamp)
 		{
-			printf("drop old fan segments\n");
+			ERROR((int)SUBPACKET_MERGE_ERROR, Error::GetErrorString(SUBPACKET_MERGE_ERROR).c_str());
 			while (seg)
 			{
 				parser->fan_segs_c7 = seg->next;
@@ -400,7 +400,7 @@ static RawData *GetData0xC7(Parser *parser, const RawDataHdr7 &hdr, uint8_t *pda
 			{
 				if (seg->hdr.ofset == fan_seg->hdr.ofset)
 				{
-					printf("drop duplicated segment\n");
+					ERROR((int)SUBPACKET_REPEAT, Error::GetErrorString(SUBPACKET_REPEAT).c_str());
 					delete fan_seg;
 					fan_seg = NULL;
 					break;
@@ -1152,6 +1152,7 @@ int alarmProc(unsigned char *buf, int len)
 
 		return 1;
 	}
+	
 	if (memcmp(buf, "AM", 2) == 0)
 	{
 		if (len >= (int)sizeof(PROCOTOL_HOST_ALARM_ST))

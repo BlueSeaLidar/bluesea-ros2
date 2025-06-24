@@ -457,17 +457,6 @@ struct ArgData
 	Custom custom;
 
 };
-typedef struct
-{
-  char sign[2];  /* AM */
-  uint8_t dev_id;  /* 设备序号 */
-  uint32_t timestamp;  /* 时间戳 */
-  uint16_t id;  /* 消息序号 */
-  uint32_t events;  /* 报警事件 */
-  uint32_t zone_actived;  /* 当前激活防区 */
-  uint8_t reserved[11];
-  uint32_t crc;
-}PROCOTOL_HOST_ALARM_ST;
 
 struct DevInfoV101
 {

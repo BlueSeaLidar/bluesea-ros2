@@ -70,7 +70,9 @@ static Error DEVICE_OFFLINE(-114,"Serial device list does not exist, please chec
 static Error CHECKSUM_ERR(-115,"Sector data calibration error, please check whether the data line is in accordance with the specification");
 static Error TOPIC_NO_FIND(-116,"Find a topic that does not exist");
 static Error NTP_IP_FORMAT_ERROR(-117,"ntp ip format set error");
-
+static Error DROP_PACKET(-118,"drop packet");
+static Error SUBPACKET_MERGE_ERROR(-119,"subpacket merge timestamp error");
+static Error SUBPACKET_REPEAT(-120,"subpacket data repeat");
 
 
 static Error ALARM_LOWPOWER(-201,"Insufficient power supply, or occasional undervoltage");

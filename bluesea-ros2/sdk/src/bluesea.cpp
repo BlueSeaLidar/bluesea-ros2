@@ -278,10 +278,13 @@ int BlueSeaLidarDriver::GetAllFans(PubHub *pub, ArgData argdata, int8_t &counter
 			}
 			total += fans[i + 1]->span;
 		}
-		// DEBUG("%d  %d %d \n", circle,total,hub->offsetidx);
+		//DEBUG("%d  %d %d \n", circle,total,hub->offsetidx);
 		if (!circle || (total != 3600 && hub->offsetidx == 0) || ((total != 3600 + fans[0]->span) && hub->offsetidx > 0))
 		{
 			// clean imcomplent datas
+			if(!circle)
+				ERROR((int)DROP_PACKET, Error::GetErrorString(DROP_PACKET).c_str());
+
 			for (int i = 0; i < cnt; i++)
 				delete fans[i];
 			cnt = 0;

@@ -33,7 +33,7 @@ bool uart_talk(int fd, int n, const char *cmd, int nhdr, const char *hdr_str, in
 	}
 	// if(idx>0)
 	//     printf("read max byte break\n");
-	for ( int i = 0; i < CacheLength - nhdr - nfetch; i++)
+	for (int i = 0; i < CacheLength - nhdr - nfetch; i++)
 	{
 		if (memcmp(buf + i, hdr_str, nhdr) == 0 && nhdr > 0)
 		{
@@ -60,7 +60,7 @@ bool uart_talk(int fd, int n, const char *cmd, int nhdr, const char *hdr_str, in
 				else
 				{
 					strncpy(fetch, "OK", 3);
-					fetch[2] ='\0';
+					fetch[2] = '\0';
 				}
 			}
 			return true;
@@ -202,11 +202,11 @@ int open_serial_port(const char *port, unsigned int baudrate)
 	}
 
 	/* set speed */
-	int speed = B230400;
-	// if (baudrate == 115200) speed = B115200;
+	// int speed = B230400;
+	//  if (baudrate == 115200) speed = B115200;
 
-	ret = cfsetispeed(&attrs, speed);  //[baudrate]);
-	ret |= cfsetospeed(&attrs, speed); //[baudrate]);
+	// ret = cfsetispeed(&attrs, speed);  //[baudrate]);
+	// ret |= cfsetospeed(&attrs, speed); //[baudrate]);
 
 	/* enable recieve and set as local line */
 	attrs.c_cflag |= (CLOCAL | CREAD);
@@ -273,7 +273,7 @@ int open_serial_port(const char *port, unsigned int baudrate)
 	return fd;
 }
 
-bool setup_lidar_uart(Parser* hP, int handle)
+bool setup_lidar_uart(Parser *hP, int handle)
 {
 	Parser *parser = (Parser *)hP;
 	unsigned int index = 5;
@@ -363,7 +363,7 @@ bool setup_lidar_uart(Parser* hP, int handle)
 			break;
 		}
 	}
-	//设置旋转方向
+	// 设置旋转方向
 	for (unsigned int i = 0; i < index; i++)
 	{
 		cmdLength = strlen(parser->cmd.direction);
@@ -404,7 +404,7 @@ bool setup_lidar_uart(Parser* hP, int handle)
 	return true;
 }
 
-bool setup_lidar_vpc(Parser* hP, int handle)
+bool setup_lidar_vpc(Parser *hP, int handle)
 {
 	Parser *parser = (Parser *)hP;
 	unsigned int index = 5;
@@ -556,7 +556,7 @@ int UartReader(UartInfo *info)
 			unsigned int nr = read(fd_uart, buf, sizeof(buf));
 			if (nr <= 0)
 			{
-				printf("read port error %d\n", nr);
+				//printf("read port error %d\n", nr);
 				ERROR((int)COM_READ_ERR, Error::GetErrorString(COM_READ_ERR).c_str());
 				break;
 			}
@@ -574,39 +574,42 @@ int UartReader(UartInfo *info)
 
 void *UartThreadProc(void *p)
 {
-	UartInfo *info = (UartInfo *)p;
-	if (access(info->port, R_OK))
+	while (1)
 	{
-		// printf("port %s not ready\n", info->port);
-		ERROR((int)DEVICE_OFFLINE, Error::GetErrorString(DEVICE_OFFLINE).c_str());
-		// sleep(10);
-		return NULL;
-	}
-	unsigned int baudrate=0;
-	if(info->baudrate<=0)
-	{
-		baudrate = GetComBaud(info->port);
-	}
-	else
-		baudrate = info->baudrate;
+		UartInfo *info = (UartInfo *)p;
+		if (access(info->port, R_OK))
+		{
+			ERROR((int)DEVICE_OFFLINE, Error::GetErrorString(DEVICE_OFFLINE).c_str());
+			sleep(3);
+			continue;
+		}
+		unsigned int baudrate = 0;
+		if (info->baudrate <= 0)
+		{
+			baudrate = GetComBaud(info->port);
+		}
+		else
+			baudrate = info->baudrate;
 
-	int fd = open_serial_port(info->port, baudrate);
-	DEBUG("Connection info:uartname %s baudrate %d", info->port, baudrate);
-	if (fd > 0)
-	{
-		info->fd_uart = fd;
-		if (strcmp(info->type, "uart") == 0)
-			setup_lidar_uart(info->hParser, info->fd_uart);
-		if (strcmp(info->type, "vpc") == 0)
-			setup_lidar_vpc(info->hParser, info->fd_uart);
+		int fd = open_serial_port(info->port, baudrate);
+		DEBUG("Connection info:uartname %s baudrate %d", info->port, baudrate);
+		if (fd > 0)
+		{
+			info->fd_uart = fd;
+			if (strcmp(info->type, "uart") == 0)
+				setup_lidar_uart(info->hParser, info->fd_uart);
+			if (strcmp(info->type, "vpc") == 0)
+				setup_lidar_vpc(info->hParser, info->fd_uart);
 
-		UartReader(info);
+			UartReader(info);
+			
+		}
 	}
-
 	return NULL;
+
 }
 
-void *StartUartReader(const char *type, const char *port, int baudrate, Parser *hParser, PubHub*hPublish)
+void *StartUartReader(const char *type, const char *port, int baudrate, Parser *hParser, PubHub *hPublish)
 {
 	UartInfo *info = new UartInfo;
 	strcpy(info->type, type);
@@ -622,7 +625,7 @@ void *StartUartReader(const char *type, const char *port, int baudrate, Parser *
 bool SendUartCmd(HReader hr, int len, char *cmd)
 {
 	UartInfo *info = (UartInfo *)hr;
-	
+
 	if (info && info->fd_uart > 0)
 		write(info->fd_uart, cmd, len);
 	return true;
@@ -686,7 +689,7 @@ int GetDevInfoByUART(const char *port_str, unsigned int speed)
 		else
 		{
 			zeroNum++;
-			usleep(1000*10);
+			usleep(1000 * 10);
 		}
 		// if (zeroNum > 10)
 		// {
@@ -694,8 +697,8 @@ int GetDevInfoByUART(const char *port_str, unsigned int speed)
 		// 	break;
 		// }
 	}
-	if(zeroNum<=10)
-	      printf("read max byte %ld break\n",rf);
+	if (zeroNum <= 10)
+		printf("read max byte %ld break\n", rf);
 	if (rf > 12)
 	{
 		for (unsigned int idx = 0; idx < rf - 12; idx++)
@@ -704,7 +707,7 @@ int GetDevInfoByUART(const char *port_str, unsigned int speed)
 			{
 				bOK = 1;
 				DEBUG("OK");
-				break;	
+				break;
 			}
 		}
 	}

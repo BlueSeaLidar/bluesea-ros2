@@ -79,7 +79,6 @@ bool udp_talk_C_PACK(int fd_udp, const char *lidar_ip, int lidar_port,
 					 int nfetch, char *fetch)
 {
 	DEBUG("send command %s", cmd);
-
 	unsigned short sn = rand();
 	send_cmd_udp(fd_udp, lidar_ip, lidar_port, 0x0043, sn, n, cmd);
 
@@ -190,7 +189,7 @@ void *UdpThreadProc(void *p)
 				{
 					info->lidars[i].nodata_count++;
 					DEBUG("lidar data is not recv,count:%d\n", info->lidars[i].nodata_count);
-					if (udp_talk_C_PACK(info->fd_udp, parser->ip, parser->port, cmdLength, parser->cmd.uuid, 11, "PRODUCT SN:", 20, buf))
+					if (udp_talk_C_PACK(info->fd_udp, parser->ip, parser->port, 6, "LUUIDH", 11, "PRODUCT SN:", 20, buf))
 					{
 						std::string sn = stringfilter(buf, 20);
 						DEBUG("uuid:%s", sn.c_str());
